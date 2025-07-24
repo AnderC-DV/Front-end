@@ -1,14 +1,19 @@
-// src/App.jsx
-import { AppRouter } from "./routes/AppRouter"; // <-- Importamos nuestro enrutador
+import React, { useState } from "react";
+import LoginPage from "./pages/LoginPage";
+import HomePage from "./pages/HomePage";
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   return (
-    // Esta etiqueta vacía <> es un "Fragment". Nos permite devolver
-    // varios elementos sin necesidad de un <div> extra.
     <>
-      <AppRouter /> {/* <-- Renderizamos las rutas que creamos */}
+      {!isAuthenticated ? (
+        <LoginPage onLogin={() => setIsAuthenticated(true)} />
+      ) : (
+        <HomePage />
+      )}
     </>
-  )
+  );
 }
 
-export default App
+export default App;
