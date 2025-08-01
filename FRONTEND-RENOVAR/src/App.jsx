@@ -1,19 +1,8 @@
-import React, { useState } from "react";
-import LoginPage from "./pages/LoginPage";
-import HomePage from "./pages/HomePage";
+import React from "react";
+import { AppRouter } from "./routes/AppRouter";
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  return (
-    <>
-      {!isAuthenticated ? (
-        <LoginPage onLogin={() => setIsAuthenticated(true)} />
-      ) : (
-        <HomePage />
-      )}
-    </>
-  );
+  return <AppRouter />;
 }
 
 export default App;

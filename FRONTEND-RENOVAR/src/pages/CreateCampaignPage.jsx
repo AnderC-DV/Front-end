@@ -1,0 +1,135 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Step1_ChannelConfig from '../components/wizards/Step1_ChannelConfig';
+import Step2_Segmentation from '../components/wizards/Step2_Segmentation';
+import Step3_Template from '../components/wizards/Step3_Template';
+import Step4_Scheduling from '../components/wizards/Step4_Scheduling';
+import Step5_Confirmation from '../components/wizards/Step5_Confirmation';
+import { createAndLaunchCampaign } from '../services/api';
+
+// --- Iconos para el Stepper ---
+const ChannelIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>;
+const SegmentIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
+const TemplateIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>;
+const ScheduleIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
+const ConfirmIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+const CheckIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>;
+// -----------------------------
+
+const Stepper = ({ currentStep }) => {
+  const steps = [
+    { name: "Canal y Configuración", icon: <ChannelIcon /> },
+    { name: "Segmentación", icon: <SegmentIcon /> },
+    { name: "Plantilla", icon: <TemplateIcon /> },
+    { name: "Programación", icon: <ScheduleIcon /> },
+    { name: "Confirmación", icon: <ConfirmIcon /> },
+  ];
+
+  return (
+    <div className="flex items-center justify-between">
+      {steps.map((step, index) => (
+        <React.Fragment key={step.name}>
+          <div className="flex flex-col items-center text-center px-2">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
+                index < currentStep ? "bg-blue-600 text-white" : 
+                index === currentStep ? "bg-white border-2 border-blue-600 text-blue-600" : 
+                "bg-gray-200 text-gray-500"
+            }`}>
+              {index < currentStep ? <CheckIcon /> : step.icon}
+            </div>
+            <p className={`mt-2 text-xs transition-all duration-300 ${
+                index === currentStep ? 'font-semibold text-gray-800' : 'text-gray-500'
+            }`}>{step.name}</p>
+          </div>
+          {index < steps.length - 1 && <div className="flex-1 h-0.5 bg-gray-200"></div>}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+};
+
+const CreateCampaignPage = () => {
+  const navigate = useNavigate();
+  const [currentStep, setCurrentStep] = useState(0);
+  const [campaignData, setCampaignData] = useState({
+    name: '',
+    channel: '',
+  });
+
+  // El botón "Siguiente" en el primer paso estará deshabilitado si no se ha seleccionado un canal
+  // o si el nombre de la campaña tiene menos de 7 caracteres.
+  const isNextDisabled = currentStep === 0 && (!campaignData.channel || campaignData.name.trim().length < 7);
+  const isScheduled = !!campaignData.scheduled_at;
+
+  const handleNext = async () => {
+    if (currentStep < 4) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      try {
+        console.log("Enviando campaña:", campaignData);
+        await createAndLaunchCampaign(campaignData);
+        alert("¡Campaña creada y lanzada con éxito!");
+        navigate('/campaigns');
+      } catch (error) {
+        console.error("Error al lanzar la campaña:", error);
+        alert(`Error al lanzar la campaña: ${error.message}`);
+      }
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 0) setCurrentStep(currentStep - 1);
+    else navigate('/campaigns');
+  };
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 0:
+        return <Step1_ChannelConfig campaignData={campaignData} setCampaignData={setCampaignData} />;
+      case 1:
+        return <Step2_Segmentation campaignData={campaignData} setCampaignData={setCampaignData} />;
+      case 2:
+        return <Step3_Template campaignData={campaignData} setCampaignData={setCampaignData} />;
+      case 3:
+        return <Step4_Scheduling campaignData={campaignData} setCampaignData={setCampaignData} />;
+      case 4:
+        return <Step5_Confirmation campaignData={campaignData} />;
+      default:
+        return <div className="text-center py-12">Paso {currentStep + 1} no implementado</div>;
+    }
+  };
+
+  return (
+    <div className="p-8 bg-gray-50 min-h-screen">
+      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-5xl mx-auto">
+        <Stepper currentStep={currentStep} />
+        <div className="my-10">
+          {renderStep()}
+        </div>
+        <div className="flex justify-between items-center pt-6 border-t">
+          <button
+            onClick={handleBack}
+            className="px-6 py-2 text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
+          >
+            {currentStep === 0 ? 'Cancelar' : 'Anterior'}
+          </button>
+          <button
+            onClick={handleNext}
+            disabled={isNextDisabled}
+            className={`px-6 py-2 text-white rounded-md font-semibold transition-colors duration-300 ${
+              isNextDisabled
+                ? 'bg-gray-400 cursor-not-allowed'
+                : currentStep === 4
+                ? (isScheduled ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700')
+                : 'bg-gray-800 hover:bg-gray-700'
+            }`}
+          >
+            {currentStep === 4 ? (isScheduled ? 'Programar Campaña' : 'Lanzar Campaña') : 'Siguiente'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CreateCampaignPage;
