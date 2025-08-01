@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { getTemplates, createTemplate, getTemplatesByStatus } from '../services/api';
 import TemplateActionMenu from '../components/TemplateActionMenu';
@@ -77,7 +77,7 @@ const TemplateManagerPage = () => {
   const [activeStatus, setActiveStatus] = useState('ALL'); // Nuevo estado para el filtro de estado
   const [loading, setLoading] = useState(true);
 
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     setLoading(true);
     try {
       let data;
@@ -92,11 +92,11 @@ const TemplateManagerPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeStatus]);
 
   useEffect(() => {
     fetchTemplates();
-  }, [activeStatus]);
+  }, [fetchTemplates]);
 
   useEffect(() => {
     // Filtramos primero por canal

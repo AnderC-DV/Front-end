@@ -10,6 +10,20 @@ const EmailPreview = ({ subject, htmlContent }) => {
         iframeDoc.open();
         iframeDoc.write(htmlContent);
         iframeDoc.close();
+
+        // Ajustar la altura del iframe al contenido
+        const resizeIframe = () => {
+          if (iframeRef.current) {
+            const contentHeight = iframeRef.current.contentWindow.document.body.scrollHeight;
+            iframeRef.current.style.height = `${contentHeight}px`;
+          }
+        };
+
+        // Usar un pequeño delay para asegurar que el contenido se renderice antes de medir
+        const timer = setTimeout(resizeIframe, 100);
+        
+        // Limpiar el timer si el componente se desmonta
+        return () => clearTimeout(timer);
       }
     }
   }, [htmlContent]);
@@ -26,8 +40,9 @@ const EmailPreview = ({ subject, htmlContent }) => {
           <iframe
             ref={iframeRef}
             title="Vista previa de Email"
-            className="w-full h-96 border-0 bg-white"
+            className="w-full border-0 bg-white" // Se quita la altura fija h-96
             sandbox="allow-same-origin"
+            scrolling="no" // Deshabilitar el scroll explícitamente
           />
         </div>
       </div>

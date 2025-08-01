@@ -1,68 +1,83 @@
 import React, { useState, useEffect } from 'react';
 import { getTemplates, getTemplatePreview } from '../../services/api';
-import EmailPreview from './EmailPreview'; // Importamos el nuevo componente
+import EmailPreview from './EmailPreview';
 
 const Step3_Template = ({ campaignData, setCampaignData }) => {
   const [templates, setTemplates] = useState([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [selectedTemplateData, setSelectedTemplateData] = useState(null);
-  const [previewContent, setPreviewContent] = useState('');
-  const [previewSubject, setPreviewSubject] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Cargar plantillas disponibles
   useEffect(() => {
     const fetchTemplates = async () => {
+      if (!campaignData.channel) return;
       try {
+        setLoading(true);
         const allTemplates = await getTemplates();
         const approvedAndFiltered = allTemplates.filter(
           t => t.status === 'APPROVED' && t.channel_type === campaignData.channel.toUpperCase()
         );
         setTemplates(approvedAndFiltered);
-      } catch (error) {
-        console.error("Error al cargar las plantillas", error);
+        setError(null);
+      } catch (err) {
+        console.error("Error al cargar las plantillas", err);
+        setError("No se pudieron cargar las plantillas.");
       } finally {
         setLoading(false);
       }
     };
-
-    if (campaignData.channel) {
-      fetchTemplates();
-    }
+    fetchTemplates();
   }, [campaignData.channel]);
 
+  // Obtener vista previa cuando cambia la plantilla seleccionada
   useEffect(() => {
     const fetchPreview = async () => {
-      if (selectedTemplateId) {
+      const templateId = campaignData.message_template_id;
+      if (templateId) {
         try {
-          setPreviewContent('Cargando vista previa...');
-          setPreviewSubject('');
-          const previewData = await getTemplatePreview(selectedTemplateId);
-          
-          // Asumimos que la API ahora devuelve subject y content
-          setPreviewContent(previewData.preview_content);
-          setPreviewSubject(previewData.preview_subject);
+          // Actualizar con datos de carga
+          setCampaignData(prev => ({
+            ...prev,
+            previewContent: 'Cargando vista previa...',
+            previewSubject: '',
+          }));
 
-          const templateData = templates.find(t => t.id === selectedTemplateId);
-          setSelectedTemplateData(templateData);
-        } catch (error) {
-          console.error("Error al cargar la vista previa", error);
-          setPreviewContent('No se pudo cargar la vista previa.');
-          setPreviewSubject('Error');
-          setSelectedTemplateData(null);
+          const previewData = await getTemplatePreview(templateId);
+          const templateDetails = templates.find(t => t.id === templateId);
+
+          setCampaignData(prev => ({
+            ...prev,
+            templateName: templateDetails ? templateDetails.name : 'Desconocido',
+            previewContent: previewData.preview_content,
+            previewSubject: previewData.preview_subject || (templateDetails ? templateDetails.subject : ''),
+          }));
+        } catch (err) {
+          console.error("Error al cargar la vista previa", err);
+          setCampaignData(prev => ({
+            ...prev,
+            previewContent: 'No se pudo cargar la vista previa.',
+            previewSubject: 'Error',
+          }));
         }
       } else {
-        setPreviewContent('');
-        setPreviewSubject('');
-        setSelectedTemplateData(null);
+        // Limpiar si no hay plantilla seleccionada
+        setCampaignData(prev => ({
+          ...prev,
+          templateName: '',
+          previewContent: '',
+          previewSubject: '',
+        }));
       }
     };
 
-    fetchPreview();
-  }, [selectedTemplateId, templates]);
+    // Solo ejecutar si las plantillas ya se han cargado
+    if (!loading) {
+      fetchPreview();
+    }
+  }, [campaignData.message_template_id, loading, templates, setCampaignData]);
 
   const handleTemplateChange = (e) => {
     const templateId = e.target.value;
-    setSelectedTemplateId(templateId);
     setCampaignData({ ...campaignData, message_template_id: templateId });
   };
 
@@ -83,13 +98,14 @@ const Step3_Template = ({ campaignData, setCampaignData }) => {
           </button>
         </div>
 
-        {loading ? (
-          <p>Cargando plantillas...</p>
-        ) : (
+        {loading && <p>Cargando plantillas...</p>}
+        {error && <p className="text-red-500">{error}</p>}
+        
+        {!loading && !error && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Plantillas Existentes</label>
             <select
-              value={selectedTemplateId}
+              value={campaignData.message_template_id || ''}
               onChange={handleTemplateChange}
               className="w-full p-3 border rounded-md bg-white"
             >
@@ -101,18 +117,18 @@ const Step3_Template = ({ campaignData, setCampaignData }) => {
           </div>
         )}
 
-        {previewContent && selectedTemplateData && (
+        {campaignData.previewContent && (
           <>
             {campaignData.channel === 'EMAIL' ? (
               <EmailPreview 
-                subject={previewSubject || selectedTemplateData.subject}
-                htmlContent={previewContent}
+                subject={campaignData.previewSubject}
+                htmlContent={campaignData.previewContent}
               />
             ) : (
               <div className="mt-8 pt-8 border-t">
                 <h3 className="text-xl font-bold text-gray-800 mb-4">Vista Previa del Mensaje</h3>
                 <div className="bg-white rounded-xl shadow-md border w-full p-6">
-                  <p className="text-gray-700 whitespace-pre-wrap">{previewContent}</p>
+                  <p className="text-gray-700 whitespace-pre-wrap">{campaignData.previewContent}</p>
                 </div>
                 <p className="text-xs text-gray-400 mt-4 text-center">
                   Las variables se completarán automáticamente con los datos de cada destinatario.

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import TemplateReviewModal from './TemplateReviewModal';
-import { approveTemplate, rejectTemplate, getTemplatesByStatus } from '../services/api';
+import { approveTemplate, rejectTemplate } from '../services/api';
 
 const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);

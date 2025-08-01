@@ -54,6 +54,9 @@ const CreateCampaignPage = () => {
   const [campaignData, setCampaignData] = useState({
     name: '',
     channel: '',
+    templateName: '',
+    previewSubject: '',
+    previewContent: '',
   });
 
   // El botón "Siguiente" en el primer paso estará deshabilitado si no se ha seleccionado un canal
