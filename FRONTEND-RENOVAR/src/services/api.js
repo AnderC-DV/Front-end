@@ -44,15 +44,25 @@ const apiRequest = async (endpoint, method = 'GET', body = null) => {
 export const getAvailableFilterFields = () => apiRequest('/audience/available-filters');
 export const getSavedFilters = () => apiRequest('/audience/filters');
 export const getClientCount = (rules) => apiRequest('/audience/count', 'POST', rules);
+export const createAudienceFilter = (filterData) => apiRequest('/audience/filters', 'POST', filterData);
 
 // --- Endpoints de Campañas ---
 export const getCampaigns = () => apiRequest('/campaigns/');
 export const createAndLaunchCampaign = (campaignData) => apiRequest('/campaigns/', 'POST', campaignData);
 
+// --- Endpoints de Campañas Recurrentes (Schedules) ---
+export const createSchedule = (scheduleData) => apiRequest('/schedules/', 'POST', scheduleData);
+export const getSchedules = () => apiRequest('/schedules/');
+export const updateSchedule = (scheduleId, scheduleData) => apiRequest(`/schedules/${scheduleId}`, 'PATCH', scheduleData);
+export const deleteSchedule = (scheduleId) => apiRequest(`/schedules/${scheduleId}`, 'DELETE');
+export const getScheduleCampaigns = (scheduleId) => apiRequest(`/schedules/${scheduleId}/campaigns`);
+
 // --- Endpoints de Plantillas ---
 export const getTemplates = () => apiRequest('/templates/');
 export const getTemplatesByStatus = (status) => apiRequest(`/templates/?status=${status}`);
+
 export const createTemplate = (templateData) => apiRequest('/templates/', 'POST', templateData);
+
 export const getTemplatePreview = (templateId) => apiRequest(`/templates/${templateId}/preview`);
 export const getTemplateById = (templateId) => apiRequest(`/templates/${templateId}`);
 export const getTemplateVariables = () => apiRequest('/templates/variables');

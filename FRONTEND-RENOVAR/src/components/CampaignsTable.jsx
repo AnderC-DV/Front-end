@@ -101,7 +101,7 @@ export default function CampaignsTable({ channelFilter }) {
             {filteredCampaigns.map((c) => {
               const channelInfo = getChannelInfo(c.channel_type);
               const statusColor = getStatusColor(c.status);
-              const formattedDate = c.updated_at ? new Date(c.updated_at).toLocaleDateString() : 'N/A';
+              const formattedDate = c.updated_at ? new Date(c.updated_at).toLocaleString() : 'N/A';
 
               return (
                 <tr key={c.id} className="hover:bg-gray-50 transition-colors duration-150">

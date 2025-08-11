@@ -1,20 +1,47 @@
 import React, { useState, useEffect } from 'react';
+import RecurrentScheduleForm from './RecurrentScheduleForm';
 
 const Step4_Scheduling = ({ campaignData, setCampaignData }) => {
-  const [scheduleType, setScheduleType] = useState('immediate'); // 'immediate' o 'scheduled'
+  const [scheduleType, setScheduleType] = useState('immediate'); // 'immediate', 'scheduled', 'recurrent'
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
+  const [recurrentData, setRecurrentData] = useState({
+    cron_expression: '',
+    start_date: '',
+    end_date: '',
+    description: ''
+  });
 
   useEffect(() => {
+    let updatedData = { ...campaignData, schedule_type: scheduleType };
+
     if (scheduleType === 'immediate') {
-      setCampaignData({ ...campaignData, scheduled_at: null });
-    } else {
+      delete updatedData.scheduled_at;
+      delete updatedData.schedule_details;
+    } else if (scheduleType === 'scheduled') {
+      delete updatedData.schedule_details;
       if (date && time) {
         const combinedDateTime = new Date(`${date}T${time}`);
-        setCampaignData({ ...campaignData, scheduled_at: combinedDateTime.toISOString() });
+        updatedData.scheduled_at = combinedDateTime.toISOString();
+      } else {
+        delete updatedData.scheduled_at;
       }
+    } else if (scheduleType === 'recurrent') {
+      delete updatedData.scheduled_at;
+      updatedData.schedule_details = {
+        ...recurrentData,
+        start_date: recurrentData.start_date ? new Date(recurrentData.start_date).toISOString() : null,
+        end_date: recurrentData.end_date ? new Date(recurrentData.end_date).toISOString() : null,
+      };
     }
-  }, [scheduleType, date, time]);
+    
+    setCampaignData(updatedData);
+
+  }, [scheduleType, date, time, recurrentData]);
+
+  const handleScheduleTypeChange = (e) => {
+    setScheduleType(e.target.value);
+  };
 
   return (
     <div>
@@ -22,33 +49,46 @@ const Step4_Scheduling = ({ campaignData, setCampaignData }) => {
       <p className="text-gray-500 mt-1">Define cuándo se enviará la campaña.</p>
 
       <div className="mt-8 space-y-6">
-        {/* --- Opciones de Envío --- */}
         <div className="space-y-4">
+          {/* Opción Inmediato */}
           <label className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
             <input
               type="radio"
               name="scheduleType"
               value="immediate"
               checked={scheduleType === 'immediate'}
-              onChange={(e) => setScheduleType(e.target.value)}
+              onChange={handleScheduleTypeChange}
               className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
             />
             <span className="ml-3 text-sm font-medium text-gray-800">Envío Inmediato</span>
           </label>
+          {/* Opción Programado */}
           <label className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
             <input
               type="radio"
               name="scheduleType"
               value="scheduled"
               checked={scheduleType === 'scheduled'}
-              onChange={(e) => setScheduleType(e.target.value)}
+              onChange={handleScheduleTypeChange}
               className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
             />
             <span className="ml-3 text-sm font-medium text-gray-800">Envío Programado</span>
           </label>
+          {/* Opción Recurrente */}
+          <label className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
+            <input
+              type="radio"
+              name="scheduleType"
+              value="recurrent"
+              checked={scheduleType === 'recurrent'}
+              onChange={handleScheduleTypeChange}
+              className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+            />
+            <span className="ml-3 text-sm font-medium text-gray-800">Campaña Recurrente</span>
+          </label>
         </div>
 
-        {/* --- Campos de Fecha y Hora (si está programado) --- */}
+        {/* Campos de Fecha y Hora (si está programado) */}
         <div className={`transition-all duration-500 ease-in-out overflow-hidden ${scheduleType === 'scheduled' ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -72,6 +112,14 @@ const Step4_Scheduling = ({ campaignData, setCampaignData }) => {
               />
             </div>
           </div>
+        </div>
+
+        {/* Formulario de Recurrencia (si es recurrente) */}
+        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${scheduleType === 'recurrent' ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+          <RecurrentScheduleForm 
+            scheduleData={recurrentData}
+            onScheduleChange={setRecurrentData}
+          />
         </div>
       </div>
     </div>

@@ -9,6 +9,8 @@ const DuplicateIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h
 const TemplateActionMenu = ({ template, onDuplicate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
+  const buttonRef = useRef(null);
+  const [isUpwards, setIsUpwards] = useState(false);
   const navigate = useNavigate();
 
   const handleEdit = () => {
@@ -34,17 +36,27 @@ const TemplateActionMenu = ({ template, onDuplicate }) => {
     };
   }, []);
 
+  const toggleMenu = () => {
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setIsUpwards(spaceBelow < 120); // 120 is an estimate of the menu height
+    }
+    setIsOpen(!isOpen);
+  };
+
   return (
     <div className="relative" ref={menuRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        ref={buttonRef}
+        onClick={toggleMenu}
         className="text-gray-500 hover:text-blue-600 font-bold p-2 rounded-full focus:outline-none"
       >
         •••
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-10 border">
+        <div className={`absolute right-0 w-56 bg-white rounded-md shadow-lg z-20 border ${isUpwards ? 'bottom-full mb-2' : 'mt-2'}`}>
           <ul className="py-1">
             <li>
               <button

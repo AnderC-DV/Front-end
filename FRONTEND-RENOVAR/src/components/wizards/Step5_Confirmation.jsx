@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { getSavedFilters, getClientCount, createAndLaunchCampaign } from '../../services/api';
+import { getSavedFilters, getClientCount } from '../../services/api';
 import EmailPreview from './EmailPreview';
+import FilterRulesPreview from './FilterRulesPreview';
 import { 
+  DetailItem, 
   WhatsAppIcon, 
   SmsIcon, 
-  EMAILIcon, 
-  DetailItem, 
-  buildCreateCampaignPayload, 
-  logCreateCampaignPayload 
+  EMAILIcon 
 } from './wizardUtils';
 
 const Step5_Confirmation = ({ campaignData }) => {
   const [audienceName, setAudienceName] = useState('Cargando...');
+  const [audienceRules, setAudienceRules] = useState([]);
   const [clientCount, setClientCount] = useState(0);
   // Los datos de la plantilla ahora vienen directamente de campaignData
   const { templateName, previewContent, previewSubject } = campaignData;
@@ -20,27 +20,55 @@ const Step5_Confirmation = ({ campaignData }) => {
     if (campaignData.audience_filter_id) {
       getSavedFilters().then(filters => {
         const found = filters.find(f => f.id === campaignData.audience_filter_id);
-        setAudienceName(found ? found.name : 'Filtro no encontrado');
+        if (found) {
+          setAudienceName(found.name);
+          setAudienceRules(found.rules);
+        } else {
+          setAudienceName('Filtro no encontrado');
+          setAudienceRules([]);
+        }
       });
     } else {
       setAudienceName(`Filtro Nuevo (${campaignData.rules?.length || 0} condiciones)`);
+      setAudienceRules(campaignData.rules || []);
     }
 
-    if (campaignData.rules && campaignData.rules.length > 0) {
-      getClientCount({ rules: campaignData.rules }).then(res => setClientCount(res.match_count));
+    const rulesForCount = campaignData.rules || audienceRules;
+    if (rulesForCount && rulesForCount.length > 0) {
+      getClientCount({ rules: rulesForCount }).then(res => setClientCount(res.match_count));
     }
-  }, [campaignData.audience_filter_id, campaignData.rules]);
+  }, [campaignData.audience_filter_id, campaignData.rules, audienceRules]);
 
   const getChannelIcon = () => {
+    const iconProps = { className: "h-6 w-6 mr-2" };
     switch (campaignData.channel) {
-      case 'WhatsApp': return <WhatsAppIcon />;
-      case 'SMS': return <SmsIcon />;
-      case 'EMAIL': return <EMAILIcon />;
+      case 'WhatsApp': return <WhatsAppIcon {...iconProps} />;
+      case 'SMS': return <SmsIcon {...iconProps} />;
+      case 'EMAIL': return <EMAILIcon {...iconProps} />;
       default: return null;
     }
   };
 
-  const isScheduled = !!campaignData.scheduled_at;
+  const renderScheduleDetails = () => {
+    const { schedule_type, scheduled_at, schedule_details } = campaignData;
+
+    if (schedule_type === 'recurrent' && schedule_details) {
+      return (
+        <div className="text-sm text-gray-900">
+          <p className="font-semibold">Campaña Recurrente</p>
+          <p>Frecuencia: <span className="font-mono bg-gray-100 px-1 rounded">{schedule_details.cron_expression}</span></p>
+          {schedule_details.start_date && <p>Inicia: {new Date(schedule_details.start_date).toLocaleString()}</p>}
+          {schedule_details.end_date && <p>Termina: {new Date(schedule_details.end_date).toLocaleString()}</p>}
+        </div>
+      );
+    }
+
+    if (schedule_type === 'scheduled' && scheduled_at) {
+      return `Programado para: ${new Date(scheduled_at).toLocaleString()}`;
+    }
+
+    return 'Envío Inmediato';
+  };
 
   return (
     <div>
@@ -54,9 +82,15 @@ const Step5_Confirmation = ({ campaignData }) => {
           <div className="flex items-center">{getChannelIcon()} {campaignData.channel}</div>
         </DetailItem>
         <DetailItem label="Programación">
-          {isScheduled ? new Date(campaignData.scheduled_at).toLocaleString() : 'Envío Inmediato'}
+          {renderScheduleDetails()}
         </DetailItem>
-        <DetailItem label="Audiencia">{audienceName}</DetailItem>
+        <DetailItem label="Audiencia">
+          {audienceName}
+          <FilterRulesPreview rules={audienceRules} />
+        </DetailItem>
+        <DetailItem label="Público Dirigido">
+          {campaignData.target_role === 'DEUDOR' ? 'Deudor' : 'Codeudor'}
+        </DetailItem>
         <DetailItem label="Clientes Alcanzados">{clientCount.toLocaleString()}</DetailItem>
       </div>
 

@@ -5,7 +5,9 @@ import Step2_Segmentation from '../components/wizards/Step2_Segmentation';
 import Step3_Template from '../components/wizards/Step3_Template';
 import Step4_Scheduling from '../components/wizards/Step4_Scheduling';
 import Step5_Confirmation from '../components/wizards/Step5_Confirmation';
-import { createAndLaunchCampaign } from '../services/api';
+import { createAndLaunchCampaign, createSchedule } from '../services/api';
+import CampaignScheduleCreate from '../schemas/CampaignScheduleCreate';
+
 
 // --- Iconos para el Stepper ---
 const ChannelIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>;
@@ -62,21 +64,47 @@ const CreateCampaignPage = () => {
   // El botón "Siguiente" en el primer paso estará deshabilitado si no se ha seleccionado un canal
   // o si el nombre de la campaña tiene menos de 7 caracteres.
   const isNextDisabled = currentStep === 0 && (!campaignData.channel || campaignData.name.trim().length < 7);
-  const isScheduled = !!campaignData.scheduled_at;
-
+  
   const handleNext = async () => {
     if (currentStep < 4) {
       setCurrentStep(currentStep + 1);
-    } else {
-      try {
-        console.log("Enviando campaña:", campaignData);
-        await createAndLaunchCampaign(campaignData);
+      return;
+    }
+
+    // Lógica de envío en el último paso
+    try {
+      if (campaignData.schedule_type === 'recurrent') {
+        const schedulePayload = new CampaignScheduleCreate({
+          name: campaignData.name,
+          channel_type: campaignData.channel,
+          message_template_id: campaignData.message_template_id,
+          audience_filter_id: campaignData.audience_filter_id,
+          target_role: campaignData.target_role,
+          codebtor_strategy: campaignData.codebtor_strategy,
+          ...campaignData.schedule_details
+        });
+        console.log("Creando schedule recurrente:", schedulePayload);
+        await createSchedule(schedulePayload);
+        alert("¡Campaña recurrente creada con éxito!");
+      } else {
+        // Lógica para campañas inmediatas o programadas
+        const campaignPayload = {
+          name: campaignData.name,
+          channel_type: campaignData.channel,
+          message_template_id: campaignData.message_template_id,
+          audience_filter_id: campaignData.audience_filter_id,
+          target_role: campaignData.target_role,
+          codebtor_strategy: campaignData.codebtor_strategy,
+          scheduled_at: campaignData.scheduled_at || null,
+        };
+        console.log("Enviando campaña única:", campaignPayload);
+        await createAndLaunchCampaign(campaignPayload);
         alert("¡Campaña creada y lanzada con éxito!");
-        navigate('/campaigns');
-      } catch (error) {
-        console.error("Error al lanzar la campaña:", error);
-        alert(`Error al lanzar la campaña: ${error.message}`);
       }
+      navigate('/campaigns');
+    } catch (error) {
+      console.error("Error al crear la campaña:", error);
+      alert(`Error al crear la campaña: ${error.message}`);
     }
   };
 
@@ -123,11 +151,16 @@ const CreateCampaignPage = () => {
               isNextDisabled
                 ? 'bg-gray-400 cursor-not-allowed'
                 : currentStep === 4
-                ? (isScheduled ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700')
+                ? (campaignData.schedule_type === 'recurrent' ? 'bg-purple-600 hover:bg-purple-700' : 
+                   campaignData.schedule_type === 'scheduled' ? 'bg-green-600 hover:bg-green-700' : 
+                   'bg-blue-600 hover:bg-blue-700')
                 : 'bg-gray-800 hover:bg-gray-700'
             }`}
           >
-            {currentStep === 4 ? (isScheduled ? 'Programar Campaña' : 'Lanzar Campaña') : 'Siguiente'}
+            {currentStep < 4 ? 'Siguiente' : 
+             campaignData.schedule_type === 'recurrent' ? 'Crear Campaña Recurrente' :
+             campaignData.schedule_type === 'scheduled' ? 'Programar Campaña' :
+             'Lanzar Campaña'}
           </button>
         </div>
       </div>

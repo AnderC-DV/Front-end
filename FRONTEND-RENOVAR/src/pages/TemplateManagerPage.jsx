@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { getTemplates, createTemplate, getTemplatesByStatus } from '../services/api';
+import { getTemplates, createTemplate } from '../services/api';
 import TemplateActionMenu from '../components/TemplateActionMenu';
 
 // --- Iconos ---
@@ -9,21 +9,21 @@ const SmsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5
 const EmailIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
 
 const StatusBadge = ({ status }) => {
-  const statusStyles = {
-    APPROVED: 'bg-green-100 text-green-700',
-    PENDING_APPROVAL: 'bg-yellow-100 text-yellow-700',
-    REJECTED: 'bg-red-100 text-red-700',
-    DRAFT: 'bg-blue-100 text-blue-700',
+  const statusInfo = {
+    APPROVED: { text: 'Aprobada', style: 'bg-green-100 text-green-700' },
+    PENDING_INTERNAL_APPROVAL: { text: 'Pendiente Aprobación', style: 'bg-yellow-100 text-yellow-700' },
+    PENDING_META_APPROVAL: { text: 'Pendiente Meta', style: 'bg-orange-100 text-orange-700' },
+    REJECTED_INTERNAL: { text: 'Rechazada', style: 'bg-red-100 text-red-700' },
+    REJECTED_META: { text: 'Rechazada Meta', style: 'bg-red-200 text-red-800' },
+    REJECTED: { text: 'Rechazada', style: 'bg-red-100 text-red-700' },
+    DRAFT: { text: 'Borrador', style: 'bg-blue-100 text-blue-700' },
   };
-  const statusText = {
-    APPROVED: 'Aprobada',
-    PENDING_APPROVAL: 'Pendiente',
-    REJECTED: 'Rechazada',
-    DRAFT: 'Borrador',
-  };
+
+  const info = statusInfo[status] || { text: status || 'Desconocido', style: 'bg-gray-100 text-gray-700' };
+
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusStyles[status]}`}>
-      {statusText[status]}
+    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${info.style}`}>
+      {info.text}
     </span>
   );
 };
@@ -80,19 +80,14 @@ const TemplateManagerPage = () => {
   const fetchTemplates = useCallback(async () => {
     setLoading(true);
     try {
-      let data;
-      if (activeStatus === 'ALL') {
-        data = await getTemplates();
-      } else {
-        data = await getTemplatesByStatus(activeStatus);
-      }
+      const data = await getTemplates();
       setTemplates(data);
     } catch (error) {
       console.error("Error al cargar plantillas:", error);
     } finally {
       setLoading(false);
     }
-  }, [activeStatus]);
+  }, []);
 
   useEffect(() => {
     fetchTemplates();
@@ -104,8 +99,17 @@ const TemplateManagerPage = () => {
     
     // Si hay un filtro de estado activo (diferente de "Todos"), aplicamos ese filtro
     if (activeStatus !== 'ALL') {
-      filtered = filtered.filter(t => t.status === activeStatus);
+      if (activeStatus === 'PENDING') {
+        filtered = filtered.filter(t => t.status.includes('PENDING'));
+      } else if (activeStatus === 'REJECTED') {
+        filtered = filtered.filter(t => t.status.includes('REJECTED'));
+      } else {
+        filtered = filtered.filter(t => t.status === activeStatus);
+      }
     }
+    
+    // Ordenamos por fecha de creación descendente
+    filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     
     setFilteredTemplates(filtered);
   }, [activeChannel, activeStatus, templates]);
@@ -161,7 +165,7 @@ const TemplateManagerPage = () => {
     <div className="my-6 bg-gray-100 p-1 rounded-xl flex gap-1">
         <button onClick={() => setActiveStatus('ALL')} className={getStatusFilterClasses('ALL')}>Todos</button>
         <button onClick={() => setActiveStatus('APPROVED')} className={getStatusFilterClasses('APPROVED')}>Aprobadas</button>
-        <button onClick={() => setActiveStatus('PENDING_APPROVAL')} className={getStatusFilterClasses('PENDING_APPROVAL')}>Pendientes</button>
+        <button onClick={() => setActiveStatus('PENDING')} className={getStatusFilterClasses('PENDING')}>Pendientes</button>
         <button onClick={() => setActiveStatus('REJECTED')} className={getStatusFilterClasses('REJECTED')}>Rechazadas</button>
         <button onClick={() => setActiveStatus('DRAFT')} className={getStatusFilterClasses('DRAFT')}>Borrador</button>
     </div>
@@ -185,7 +189,7 @@ const TemplateManagerPage = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{template.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-md truncate">{template.content}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm"><StatusBadge status={template.status} /></td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                <td className="px-6 py-4 whitespace-nowrap text-sm relative">
                   <TemplateActionMenu template={template} onDuplicate={setTemplateToDuplicate} />
                 </td>
               </tr>

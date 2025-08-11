@@ -35,21 +35,4 @@ export const DetailItem = ({ label, children }) => (
   </div>
 );
 
-// --- Funciones de ayuda para el payload ---
-export function buildCreateCampaignPayload(campaignData) {
-  const payload = {
-    name: campaignData.name,
-    channel_type: campaignData.channel ? campaignData.channel.toUpperCase() : undefined,
-    message_template_id: campaignData.message_template_id,
-    audience_filter_id: campaignData.audience_filter_id,
-    target_role: 'DEUDOR',
-  };
-  if (campaignData.scheduled_at) {
-    payload.scheduled_at = campaignData.scheduled_at;
-  }
-  return payload;
-}
-
-export function logCreateCampaignPayload(payload) {
-  console.log('[Crear Campaña] Payload enviado:', JSON.stringify(payload, null, 2));
-}
+// Las funciones de ayuda se han movido a segmentationUtils.js

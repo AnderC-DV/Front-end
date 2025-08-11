@@ -159,7 +159,7 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
                       <div className="text-xs text-gray-500">{template.creator?.email || ''}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {template.created_at ? new Date(template.created_at).toLocaleDateString() : 'N/A'}
+                      {template.created_at ? new Date(template.created_at).toLocaleString() : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end space-x-3">
