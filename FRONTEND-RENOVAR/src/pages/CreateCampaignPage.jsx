@@ -5,8 +5,10 @@ import Step2_Segmentation from '../components/wizards/Step2_Segmentation';
 import Step3_Template from '../components/wizards/Step3_Template';
 import Step4_Scheduling from '../components/wizards/Step4_Scheduling';
 import Step5_Confirmation from '../components/wizards/Step5_Confirmation';
-import { createAndLaunchCampaign, createSchedule } from '../services/api';
+import { createAndLaunchCampaign, createSchedule, createAudienceFilter } from '../services/api';
 import CampaignScheduleCreate from '../schemas/CampaignScheduleCreate';
+import AudienceFilterCreate from '../schemas/AudienceFilterCreate';
+import CampaignCreate from '../schemas/CampaignCreate';
 
 
 // --- Iconos para el Stepper ---
@@ -63,24 +65,57 @@ const CreateCampaignPage = () => {
 
   // El botón "Siguiente" en el primer paso estará deshabilitado si no se ha seleccionado un canal
   // o si el nombre de la campaña tiene menos de 7 caracteres.
-  const isNextDisabled = currentStep === 0 && (!campaignData.channel || campaignData.name.trim().length < 7);
+  const hasAudienceFilter = !!campaignData.audience_filter_id || (campaignData.rules && campaignData.rules.length > 0);
+  const isCodebtorStrategyMissing = campaignData.target_role === 'CODEUDOR' && !campaignData.codebtor_strategy;
+
+  // Validaciones:
+  // Paso 0: requiere canal y nombre >= 7 caracteres
+  // Desde paso 1 en adelante: siempre debe mantenerse un filtro (guardado o reglas) seleccionado.
+  // Si el rol es CODEUDOR, se debe seleccionar una estrategia.
+  const isNextDisabled = (
+    (currentStep === 0 && (!campaignData.channel || campaignData.name.trim().length < 7)) ||
+    (currentStep >= 1 && !hasAudienceFilter) ||
+    (currentStep === 1 && isCodebtorStrategyMissing)
+  );
   
   const handleNext = async () => {
     if (currentStep < 4) {
+      // Bloqueo preventivo si por alguna razón se pierde el filtro después del paso 1
+      if (currentStep >= 1 && !hasAudienceFilter) return;
       setCurrentStep(currentStep + 1);
       return;
     }
 
     // Lógica de envío en el último paso
     try {
+      if (!hasAudienceFilter) {
+        alert('Debes seleccionar o construir un filtro antes de crear la campaña.');
+        return;
+      }
+
+      let filterIdToUse = campaignData.audience_filter_id;
+
+      // Si se ha creado un filtro nuevo (hay reglas), crearlo primero
+      if (campaignData.rules && campaignData.rules.length > 0) {
+        const filterName = `Filtro para Campaña: ${campaignData.name}`;
+        const newFilterPayload = new AudienceFilterCreate(filterName, campaignData.rules);
+        const createdFilter = await createAudienceFilter(newFilterPayload);
+        filterIdToUse = createdFilter.id;
+      }
+
+      if (!filterIdToUse) {
+        alert('No se pudo determinar el filtro de audiencia. Por favor, revisa la configuración.');
+        return;
+      }
+
       if (campaignData.schedule_type === 'recurrent') {
         const schedulePayload = new CampaignScheduleCreate({
           name: campaignData.name,
           channel_type: campaignData.channel,
           message_template_id: campaignData.message_template_id,
-          audience_filter_id: campaignData.audience_filter_id,
+          audience_filter_id: filterIdToUse,
           target_role: campaignData.target_role,
-          codebtor_strategy: campaignData.codebtor_strategy,
+          codebtor_strategy: campaignData.target_role === 'CODEUDOR' ? campaignData.codebtor_strategy : null,
           ...campaignData.schedule_details
         });
         console.log("Creando schedule recurrente:", schedulePayload);
@@ -88,15 +123,15 @@ const CreateCampaignPage = () => {
         alert("¡Campaña recurrente creada con éxito!");
       } else {
         // Lógica para campañas inmediatas o programadas
-        const campaignPayload = {
+        const campaignPayload = new CampaignCreate({
           name: campaignData.name,
           channel_type: campaignData.channel,
           message_template_id: campaignData.message_template_id,
-          audience_filter_id: campaignData.audience_filter_id,
+          audience_filter_id: filterIdToUse,
           target_role: campaignData.target_role,
-          codebtor_strategy: campaignData.codebtor_strategy,
+          codebtor_strategy: campaignData.target_role === 'CODEUDOR' ? campaignData.codebtor_strategy : null,
           scheduled_at: campaignData.scheduled_at || null,
-        };
+        });
         console.log("Enviando campaña única:", campaignPayload);
         await createAndLaunchCampaign(campaignPayload);
         alert("¡Campaña creada y lanzada con éxito!");

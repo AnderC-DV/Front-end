@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getSavedFilters, getClientCount } from '../../services/api';
+import { getSavedFilters } from '../../services/api';
 import EmailPreview from './EmailPreview';
 import FilterRulesPreview from './FilterRulesPreview';
 import { 
@@ -12,9 +12,8 @@ import {
 const Step5_Confirmation = ({ campaignData }) => {
   const [audienceName, setAudienceName] = useState('Cargando...');
   const [audienceRules, setAudienceRules] = useState([]);
-  const [clientCount, setClientCount] = useState(0);
-  // Los datos de la plantilla ahora vienen directamente de campaignData
-  const { templateName, previewContent, previewSubject } = campaignData;
+  // Los datos de la plantilla y el conteo ahora vienen directamente de campaignData
+  const { templateName, previewContent, previewSubject, client_count = 0 } = campaignData;
 
   useEffect(() => {
     if (campaignData.audience_filter_id) {
@@ -33,11 +32,7 @@ const Step5_Confirmation = ({ campaignData }) => {
       setAudienceRules(campaignData.rules || []);
     }
 
-    const rulesForCount = campaignData.rules || audienceRules;
-    if (rulesForCount && rulesForCount.length > 0) {
-      getClientCount({ rules: rulesForCount }).then(res => setClientCount(res.match_count));
-    }
-  }, [campaignData.audience_filter_id, campaignData.rules, audienceRules]);
+  }, [campaignData.audience_filter_id, campaignData.rules]);
 
   const getChannelIcon = () => {
     const iconProps = { className: "h-6 w-6 mr-2" };
@@ -91,7 +86,12 @@ const Step5_Confirmation = ({ campaignData }) => {
         <DetailItem label="Público Dirigido">
           {campaignData.target_role === 'DEUDOR' ? 'Deudor' : 'Codeudor'}
         </DetailItem>
-        <DetailItem label="Clientes Alcanzados">{clientCount.toLocaleString()}</DetailItem>
+        {campaignData.target_role === 'CODEUDOR' && (
+          <DetailItem label="Estrategia Codeudor">
+            {campaignData.codebtor_strategy === 'FIRST' ? 'Enviar al primero' : 'Enviar a todos'}
+          </DetailItem>
+        )}
+        <DetailItem label="Clientes Alcanzados">{client_count.toLocaleString()}</DetailItem>
       </div>
 
       {campaignData.channel === 'EMAIL' ? (

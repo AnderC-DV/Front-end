@@ -42,6 +42,7 @@ const apiRequest = async (endpoint, method = 'GET', body = null) => {
 
 // --- Endpoints de Segmentación ---
 export const getAvailableFilterFields = () => apiRequest('/audience/available-filters');
+export const getDistinctValues = (fieldName) => apiRequest(`/audience/filters/distinct-values/${fieldName}`);
 export const getSavedFilters = () => apiRequest('/audience/filters');
 export const getClientCount = (rules) => apiRequest('/audience/count', 'POST', rules);
 export const createAudienceFilter = (filterData) => apiRequest('/audience/filters', 'POST', filterData);

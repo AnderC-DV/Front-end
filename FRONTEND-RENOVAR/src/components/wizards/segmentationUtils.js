@@ -13,13 +13,17 @@ export const segmentationOperators = [
 
 // --- Funciones de ayuda para el payload ---
 export function buildCreateCampaignPayload(campaignData) {
+  // target_role puede ser 'DEUDOR', 'CODEUDOR' o 'BOTH'
   const payload = {
     name: campaignData.name,
     channel_type: campaignData.channel ? campaignData.channel.toUpperCase() : undefined,
     message_template_id: campaignData.message_template_id,
     audience_filter_id: campaignData.audience_filter_id,
-    target_role: 'DEUDOR',
+    target_role: campaignData.target_role || 'DEUDOR',
   };
+  if (campaignData.codebtor_strategy && (campaignData.target_role === 'CODEUDOR' || campaignData.target_role === 'BOTH')) {
+    payload.codebtor_strategy = campaignData.codebtor_strategy;
+  }
   if (campaignData.scheduled_at) {
     payload.scheduled_at = campaignData.scheduled_at;
   }

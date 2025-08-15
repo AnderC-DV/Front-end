@@ -2,15 +2,31 @@ import React, { useState, useEffect } from 'react';
 import RecurrentScheduleForm from './RecurrentScheduleForm';
 
 const Step4_Scheduling = ({ campaignData, setCampaignData }) => {
-  const [scheduleType, setScheduleType] = useState('immediate'); // 'immediate', 'scheduled', 'recurrent'
+  const [scheduleType, setScheduleType] = useState(campaignData.schedule_type || 'immediate');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  const [recurrentData, setRecurrentData] = useState({
+  const [recurrentData, setRecurrentData] = useState(campaignData.schedule_details || {
     cron_expression: '',
     start_date: '',
     end_date: '',
     description: ''
   });
+
+  // Efecto para inicializar los campos de fecha y hora si ya existen en campaignData
+  useEffect(() => {
+    if (campaignData.schedule_type === 'scheduled' && campaignData.scheduled_at) {
+      const localDate = new Date(campaignData.scheduled_at);
+      
+      const year = localDate.getFullYear();
+      const month = String(localDate.getMonth() + 1).padStart(2, '0');
+      const day = String(localDate.getDate()).padStart(2, '0');
+      setDate(`${year}-${month}-${day}`);
+
+      const hours = String(localDate.getHours()).padStart(2, '0');
+      const minutes = String(localDate.getMinutes()).padStart(2, '0');
+      setTime(`${hours}:${minutes}`);
+    }
+  }, []); // Se ejecuta solo una vez al montar el componente
 
   useEffect(() => {
     let updatedData = { ...campaignData, schedule_type: scheduleType };

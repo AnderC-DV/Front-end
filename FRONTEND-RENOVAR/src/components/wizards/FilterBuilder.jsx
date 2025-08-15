@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getAvailableFilterFields, getClientCount, createAudienceFilter } from '../../services/api';
+import { getAvailableFilterFields, getClientCount, createAudienceFilter, getDistinctValues } from '../../services/api';
 import { debounce } from 'lodash';
 import AudienceFilterCreate from '../../schemas/AudienceFilterCreate';
 import { segmentationOperators } from './segmentationUtils';
 
 const FilterBuilder = ({ setClientCount, setCampaignData, initialConditions, onSave }) => {
-  const [conditions, setConditions] = useState(initialConditions || [{ id: Date.now(), field_name: '', operator: '', value: '' }]);
+  const [conditions, setConditions] = useState(initialConditions || [{ id: Date.now(), field_name: '', operator: '', value: '', distinctValues: [] }]);
   const [fields, setFields] = useState([]);
   const [operators] = useState(segmentationOperators);
   const [loading, setLoading] = useState(true);
@@ -53,12 +53,27 @@ const FilterBuilder = ({ setClientCount, setCampaignData, initialConditions, onS
     }
   }, [conditions, debouncedGetCount, setCampaignData]);
 
-  const handleConditionChange = (id, field, value) => {
-    setConditions(conditions.map(c => c.id === id ? { ...c, [field]: value } : c));
+  const handleConditionChange = async (id, field, value) => {
+    const newConditions = conditions.map(c => c.id === id ? { ...c, [field]: value } : c);
+
+    if (field === 'field_name') {
+      const targetCondition = newConditions.find(c => c.id === id);
+      targetCondition.value = ''; // Reset value on field change
+      targetCondition.distinctValues = [];
+      if (value) {
+        try {
+          const distinctValues = await getDistinctValues(value);
+          targetCondition.distinctValues = distinctValues;
+        } catch (error) {
+          console.error(`Error fetching distinct values for ${value}:`, error);
+        }
+      }
+    }
+    setConditions(newConditions);
   };
 
   const addCondition = () => {
-    setConditions([...conditions, { id: Date.now(), field_name: '', operator: '', value: '' }]);
+    setConditions([...conditions, { id: Date.now(), field_name: '', operator: '', value: '', distinctValues: [] }]);
   };
 
   const removeCondition = (id) => {
@@ -67,7 +82,13 @@ const FilterBuilder = ({ setClientCount, setCampaignData, initialConditions, onS
 
   const handleSave = async (e) => {
     e.preventDefault();
-    const validConditions = conditions.filter(c => c.field_name && c.operator && c.value).map(({ id, ...rest }) => rest);
+    const validConditions = conditions
+      .filter(c => c.field_name && c.operator && c.value)
+      .map(c => ({
+        field_name: c.field_name,
+        operator: c.operator,
+        value: c.value,
+      }));
     try {
       const payload = new AudienceFilterCreate(newFilterName, validConditions);
       await createAudienceFilter(payload);
@@ -85,17 +106,32 @@ const FilterBuilder = ({ setClientCount, setCampaignData, initialConditions, onS
   return (
     <div>
       {conditions.map((cond) => (
-        <div key={cond.id} className="flex items-center gap-4 mb-4">
-          <select value={cond.field_name} onChange={(e) => handleConditionChange(cond.id, 'field_name', e.target.value)} className="flex-1 p-2 border rounded-md bg-white">
-            <option value="">Seleccionar Campo</option>
-            {fields.map(f => <option key={f.variable_name} value={f.variable_name}>{f.description}</option>)}
-          </select>
-          <select value={cond.operator} onChange={(e) => handleConditionChange(cond.id, 'operator', e.target.value)} className="flex-1 p-2 border rounded-md bg-white">
-            <option value="">Seleccionar Operador</option>
-            {operators.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-          </select>
-          <input type="text" value={cond.value} onChange={(e) => handleConditionChange(cond.id, 'value', e.target.value)} placeholder="Valor" className="flex-1 p-2 border rounded-md" />
-          <button onClick={() => removeCondition(cond.id)} className="text-red-500 hover:text-red-700 text-2xl">&times;</button>
+        <div key={cond.id} className="grid grid-cols-12 items-center gap-4 mb-4">
+          <div className="col-span-5">
+            <select value={cond.field_name} onChange={(e) => handleConditionChange(cond.id, 'field_name', e.target.value)} className="w-full p-2 border rounded-md bg-white">
+              <option value="">Seleccionar Campo</option>
+              {fields.map(f => <option key={f.variable_name} value={f.variable_name}>{f.description}</option>)}
+            </select>
+          </div>
+          <div className="col-span-3">
+            <select value={cond.operator} onChange={(e) => handleConditionChange(cond.id, 'operator', e.target.value)} className="w-full p-2 border rounded-md bg-white">
+              <option value="">Seleccionar Operador</option>
+              {operators.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+          </div>
+          <div className="col-span-3">
+            {cond.distinctValues && cond.distinctValues.length > 0 ? (
+              <select value={cond.value} onChange={(e) => handleConditionChange(cond.id, 'value', e.target.value)} className="w-full p-2 border rounded-md bg-white">
+                <option value="">Seleccionar Valor</option>
+                {cond.distinctValues.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+            ) : (
+              <input type="text" value={cond.value} onChange={(e) => handleConditionChange(cond.id, 'value', e.target.value)} placeholder="Valor" className="w-full p-2 border rounded-md" />
+            )}
+          </div>
+          <div className="col-span-1 text-right">
+            <button onClick={() => removeCondition(cond.id)} className="text-red-500 hover:text-red-700 text-2xl">&times;</button>
+          </div>
         </div>
       ))}
       <div className="flex justify-between items-center mt-4">

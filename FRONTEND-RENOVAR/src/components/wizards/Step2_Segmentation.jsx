@@ -5,19 +5,38 @@ import TargetRoleSwitch from './TargetRoleSwitch';
 
 const Step2_Segmentation = ({ campaignData, setCampaignData }) => {
   const [activeTab, setActiveTab] = useState('saved');
-  const [clientCount, setClientCount] = useState(0);
+  const [clientCount, setClientCount] = useState(campaignData.client_count || 0);
   const [initialConditions, setInitialConditions] = useState(null);
-  const [targetRole, setTargetRole] = useState(campaignData.target_role || 'DEUDOR');
+  const [targetRoles, setTargetRoles] = useState(
+    campaignData.target_role === 'BOTH'
+      ? ['DEUDOR','CODEUDOR']
+      : [campaignData.target_role || 'DEUDOR']
+  );
 
   useEffect(() => {
-    setCampaignData(prev => ({ ...prev, target_role: targetRole }));
-  }, [targetRole, setCampaignData]);
+    const value = targetRoles.length === 2 ? 'BOTH' : targetRoles[0];
+    setCampaignData(prev => ({ ...prev, target_role: value }));
+  }, [targetRoles, setCampaignData]);
+
+  useEffect(() => {
+    if (campaignData.rules && campaignData.rules.length > 0) {
+      setActiveTab('create');
+      setInitialConditions(campaignData.rules.map(r => ({ ...r, id: Date.now() + Math.random() })));
+    } else if (campaignData.audience_filter_id) {
+      setActiveTab('saved');
+    }
+  }, []);
+
+  const handleClientCountChange = (count) => {
+    setClientCount(count);
+    setCampaignData(prev => ({ ...prev, client_count: count }));
+  };
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setClientCount(0);
     setInitialConditions(null);
-    setCampaignData(prev => ({ ...prev, rules: [], audience_filter_id: null }));
+    setCampaignData(prev => ({ ...prev, rules: [], audience_filter_id: null, client_count: 0 }));
   };
 
   const handleEditFilter = (rules) => {
@@ -48,23 +67,34 @@ const Step2_Segmentation = ({ campaignData, setCampaignData }) => {
 
         {activeTab === 'create' ? 
             <FilterBuilder 
-              setClientCount={setClientCount} 
+              setClientCount={handleClientCountChange} 
               setCampaignData={setCampaignData} 
               initialConditions={initialConditions} 
               onSave={() => handleTabChange('saved')} 
             /> : 
             <SavedFilters 
-              setClientCount={setClientCount} 
+              setClientCount={handleClientCountChange} 
               setCampaignData={setCampaignData} 
               onEdit={handleEditFilter} 
+              campaignData={campaignData} 
             />
         }
 
-        <TargetRoleSwitch selectedRole={targetRole} onRoleChange={setTargetRole} />
+        <TargetRoleSwitch
+          selectedRoles={targetRoles}
+          onChange={setTargetRoles}
+          codebtorStrategy={campaignData.codebtor_strategy}
+          onCodebtorStrategyChange={(strategy) => setCampaignData(prev => ({ ...prev, codebtor_strategy: strategy }))}
+        />
 
         <div className="mt-6 p-4 bg-blue-50 rounded-lg text-center">
             <p className="text-blue-800">Número de Clientes Coincidentes: <span className="font-bold">{clientCount.toLocaleString()}</span></p>
         </div>
+        {!(campaignData.audience_filter_id || (campaignData.rules && campaignData.rules.length > 0)) && (
+          <div className="mt-4 p-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-700">
+            Debes seleccionar un filtro guardado o construir uno nuevo antes de continuar.
+          </div>
+        )}
       </div>
     </div>
   );
