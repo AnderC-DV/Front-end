@@ -1,6 +1,6 @@
 import React from "react";
 import { AppRouter } from "./routes/AppRouter";
-import { NotificationProvider } from "./context/NotificationContext";
+import NotificationProvider from "./context/NotificationContext";
 
 function App() {
   return (

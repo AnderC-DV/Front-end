@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNotifications } from '../context/NotificationContext';
+import { useNotifications } from '../hooks/useNotifications';
 import { X, Mail, CheckCircle } from 'lucide-react';
 
 const NotificationPanel = ({ onClose }) => {

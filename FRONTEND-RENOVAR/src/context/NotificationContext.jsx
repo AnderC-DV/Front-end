@@ -1,11 +1,8 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getNotifications, getUnreadNotificationsCount, markNotificationAsRead } from '../services/api';
+import { NotificationContext } from './NotificationContextDefinition';
 
-const NotificationContext = createContext();
-
-export const useNotifications = () => useContext(NotificationContext);
-
-export const NotificationProvider = ({ children }) => {
+const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -81,3 +78,5 @@ export const NotificationProvider = ({ children }) => {
     </NotificationContext.Provider>
   );
 };
+
+export default NotificationProvider;
