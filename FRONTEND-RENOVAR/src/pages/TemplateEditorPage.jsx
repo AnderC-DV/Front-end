@@ -27,6 +27,7 @@ const TemplateEditorPage = () => {
   const [loading, setLoading] = useState(true);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [smsLimitExceeded, setSmsLimitExceeded] = useState(false); // bandera para mostrar alerta visual
   const contentRef = useRef(null);
 
   useEffect(() => {
@@ -217,7 +218,11 @@ const TemplateEditorPage = () => {
                 onChange={e => {
                   const newContent = e.target.value;
                   if (template.channel_type === 'SMS' && newContent.length > 300) {
+                    // No modificamos el contenido (misma lógica anterior), solo marcamos bandera
+                    setSmsLimitExceeded(true);
                     return;
+                  } else if (smsLimitExceeded && newContent.length <= 300) {
+                    setSmsLimitExceeded(false);
                   }
                   setTemplate(prev => ({
                     ...prev,
@@ -238,8 +243,11 @@ const TemplateEditorPage = () => {
                 placeholder="Escribe tu mensaje aquí y arrastra las variables desde la derecha."
               ></textarea>
               {template.channel_type === 'SMS' && (
-                <div className="text-right text-sm text-gray-500 mt-1">
-                  {template.content.length} / 300
+                <div className="mt-1 flex justify-between items-center text-xs">
+                  <span className={`font-medium ${smsLimitExceeded ? 'text-red-600' : 'text-gray-500'}`}>{template.content.length} / 300</span>
+                  {smsLimitExceeded && (
+                    <span className="text-red-600">Has superado el límite de 300 caracteres. El texto adicional no se guardará.</span>
+                  )}
                 </div>
               )}
             </div>

@@ -4,14 +4,14 @@ import { useAuth } from '../context/AuthContext';
 import MainLayout from '../components/MainLayout';
 
 const ProtectedRoute = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
   return (
-    <MainLayout>
+    <MainLayout user={user}>
       <Outlet />
     </MainLayout>
   );

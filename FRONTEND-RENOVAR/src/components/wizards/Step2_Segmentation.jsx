@@ -7,16 +7,11 @@ const Step2_Segmentation = ({ campaignData, setCampaignData }) => {
   const [activeTab, setActiveTab] = useState('saved');
   const [clientCount, setClientCount] = useState(campaignData.client_count || 0);
   const [initialConditions, setInitialConditions] = useState(null);
-  const [targetRoles, setTargetRoles] = useState(
-    campaignData.target_role === 'BOTH'
-      ? ['DEUDOR','CODEUDOR']
-      : [campaignData.target_role || 'DEUDOR']
-  );
+  const [targetRole, setTargetRole] = useState(campaignData.target_role || 'DEUDOR');
 
   useEffect(() => {
-    const value = targetRoles.length === 2 ? 'BOTH' : targetRoles[0];
-    setCampaignData(prev => ({ ...prev, target_role: value }));
-  }, [targetRoles, setCampaignData]);
+    setCampaignData(prev => ({ ...prev, target_role: targetRole }));
+  }, [targetRole, setCampaignData]);
 
   useEffect(() => {
     if (campaignData.rules && campaignData.rules.length > 0) {
@@ -81,8 +76,8 @@ const Step2_Segmentation = ({ campaignData, setCampaignData }) => {
         }
 
         <TargetRoleSwitch
-          selectedRoles={targetRoles}
-          onChange={setTargetRoles}
+          selectedRole={targetRole}
+          onChange={setTargetRole}
           codebtorStrategy={campaignData.codebtor_strategy}
           onCodebtorStrategyChange={(strategy) => setCampaignData(prev => ({ ...prev, codebtor_strategy: strategy }))}
         />

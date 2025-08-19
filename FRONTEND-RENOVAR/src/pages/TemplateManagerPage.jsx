@@ -167,7 +167,6 @@ const TemplateManagerPage = () => {
         <button onClick={() => setActiveStatus('APPROVED')} className={getStatusFilterClasses('APPROVED')}>Aprobadas</button>
         <button onClick={() => setActiveStatus('PENDING')} className={getStatusFilterClasses('PENDING')}>Pendientes</button>
         <button onClick={() => setActiveStatus('REJECTED')} className={getStatusFilterClasses('REJECTED')}>Rechazadas</button>
-        <button onClick={() => setActiveStatus('DRAFT')} className={getStatusFilterClasses('DRAFT')}>Borrador</button>
     </div>
 
     <div className="overflow-x-auto">

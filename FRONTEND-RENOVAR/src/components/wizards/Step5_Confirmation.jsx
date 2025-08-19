@@ -84,9 +84,9 @@ const Step5_Confirmation = ({ campaignData }) => {
           <FilterRulesPreview rules={audienceRules} />
         </DetailItem>
         <DetailItem label="Público Dirigido">
-          {campaignData.target_role === 'DEUDOR' ? 'Deudor' : 'Codeudor'}
+          {campaignData.target_role === 'DEUDOR' ? 'Deudor' : campaignData.target_role === 'CODEUDOR' ? 'Codeudor' : 'Ambas'}
         </DetailItem>
-        {campaignData.target_role === 'CODEUDOR' && (
+        {(campaignData.target_role === 'CODEUDOR' || campaignData.target_role === 'AMBAS') && (
           <DetailItem label="Estrategia Codeudor">
             {campaignData.codebtor_strategy === 'FIRST' ? 'Enviar al primero' : 'Enviar a todos'}
           </DetailItem>

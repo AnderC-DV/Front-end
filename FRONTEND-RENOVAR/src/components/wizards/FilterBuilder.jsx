@@ -30,28 +30,25 @@ const FilterBuilder = ({ setClientCount, setCampaignData, initialConditions, onS
     setConditions(initialConditions || [{ id: Date.now(), field_name: '', operator: '', value: '' }]);
   }, [initialConditions]);
 
-  const debouncedGetCount = useCallback(
-    debounce(async (currentConditions) => {
+  const handleGetCount = async () => {
+    const validConditions = conditions.filter(c => c.field_name && c.operator && c.value);
+    if (validConditions.length > 0) {
       try {
-        const response = await getClientCount(currentConditions);
+        const response = await getClientCount(validConditions);
         setClientCount(response.match_count);
       } catch (error) {
         console.error("Error al obtener el conteo de clientes", error);
         setClientCount(0);
       }
-    }, 800),
-    [setClientCount]
-  );
+    } else {
+      setClientCount(0);
+    }
+  };
 
   useEffect(() => {
     const validConditions = conditions.filter(c => c.field_name && c.operator && c.value);
     setCampaignData(prev => ({ ...prev, rules: validConditions, audience_filter_id: null }));
-    if (validConditions.length > 0) {
-      debouncedGetCount(validConditions);
-    } else {
-      setClientCount(0);
-    }
-  }, [conditions, debouncedGetCount, setCampaignData]);
+  }, [conditions, setCampaignData]);
 
   const handleConditionChange = async (id, field, value) => {
     const newConditions = conditions.map(c => c.id === id ? { ...c, [field]: value } : c);
@@ -138,9 +135,14 @@ const FilterBuilder = ({ setClientCount, setCampaignData, initialConditions, onS
         <button onClick={addCondition} className="flex items-center text-blue-600 font-semibold">
           <span className="text-xl mr-2">+</span> Añadir Condición
         </button>
-        <button onClick={() => setIsSaveModalOpen(true)} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700" disabled={conditions.filter(c => c.field_name && c.operator && c.value).length === 0}>
-          Guardar Filtro
-        </button>
+        <div>
+          <button onClick={handleGetCount} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 mr-2" disabled={conditions.filter(c => c.field_name && c.operator && c.value).length === 0}>
+            Calcular Audiencia
+          </button>
+          <button onClick={() => setIsSaveModalOpen(true)} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700" disabled={conditions.filter(c => c.field_name && c.operator && c.value).length === 0}>
+            Guardar Filtro
+          </button>
+        </div>
       </div>
 
       {isSaveModalOpen && (

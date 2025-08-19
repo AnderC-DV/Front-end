@@ -6,9 +6,11 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Si en el futuro necesitas filtrar por canal también
-  // const [channelFilter, setChannelFilter] = useState('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const paginatedTemplates = templates.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const totalPages = Math.ceil(templates.length / rowsPerPage);
   
   const getChannelIcon = (channelType) => {
     switch(channelType?.toLowerCase()) {
@@ -130,8 +132,8 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {templates && templates.length > 0 ? (
-              templates.map((template) => {
+            {paginatedTemplates.length > 0 ? (
+              paginatedTemplates.map((template) => {
                 const status = getStatusChip(template.status);
                 return (
                   <tr key={template.id} className="hover:bg-gray-50 transition-colors duration-150">
@@ -205,6 +207,27 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
             )}
           </tbody>
         </table>
+        <div className="p-4 flex items-center justify-between">
+          <div>
+            <span className="text-sm text-gray-700">
+              Mostrando <span className="font-medium">{(currentPage - 1) * rowsPerPage + 1}</span> a <span className="font-medium">{Math.min(currentPage * rowsPerPage, templates.length)}</span> de <span className="font-medium">{templates.length}</span> resultados
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <select value={rowsPerPage} onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }} className="p-1 border rounded-md">
+              {[10, 25, 50].map(size => (
+                <option key={size} value={size}>Mostrar {size}</option>
+              ))}
+            </select>
+            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-1 border rounded-md disabled:opacity-50">
+              Anterior
+            </button>
+            <span className="text-sm">{currentPage} de {totalPages}</span>
+            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-1 border rounded-md disabled:opacity-50">
+              Siguiente
+            </button>
+          </div>
+        </div>
       </div>
       {/* Modal de revisión de plantilla */}
       {isModalOpen && selectedTemplate && (

@@ -13,6 +13,7 @@ const TemplateApprovalPage = () => {
     try {
       setLoading(true);
       const allTemplates = await getTemplates();
+      console.log('API Response:', allTemplates); // Log the response
       setTemplates(allTemplates);
       setError(null);
     } catch (err) {
@@ -58,7 +59,6 @@ const TemplateApprovalPage = () => {
         <button onClick={() => setStatusFilter('PENDING_INTERNAL_APPROVAL')} className={getButtonClasses('PENDING_INTERNAL_APPROVAL')}>Pendientes</button>
         <button onClick={() => setStatusFilter('APPROVED')} className={getButtonClasses('APPROVED')}>Aprobadas</button>
         <button onClick={() => setStatusFilter('REJECTED_INTERNAL')} className={getButtonClasses('REJECTED_INTERNAL')}>Rechazadas</button>
-        <button onClick={() => setStatusFilter('DRAFT')} className={getButtonClasses('DRAFT')}>Borrador</button>
       </div>
 
       {loading && <p>Cargando plantillas...</p>}

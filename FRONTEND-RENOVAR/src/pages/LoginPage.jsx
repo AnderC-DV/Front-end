@@ -1,4 +1,3 @@
-// src/pages/LoginPage.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -7,35 +6,28 @@ import loginIllustration from '../assets/ilustracion-login.png';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const [email, setEmail] = useState("");
+  const { checkUserIdentifier, loginWithPassword, firstTimeLogin } = useAuth();
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [step, setStep] = useState("identifier");
+  const [step, setStep] = useState("identifier"); // identifier, password, firstTime
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [userInfo, setUserInfo] = useState(null);
 
-  const handleIdentifier = async (e) => {
+  const handleIdentifierSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("https://backend-475190189080.us-central1.run.app/api/v1/auth/login/check-identifier", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier: email }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || "Usuario no encontrado");
-      }
-
-      const data = await response.json();
-      if (data.first_time) {
+      const data = await checkUserIdentifier(identifier);
+      setUserInfo(data);
+      if (data.status === 'FIRST_TIME_LOGIN' || data.status === 'new_user_authorized') {
         setStep("firstTime");
-      } else {
+      } else if (data.status === 'ACTIVE' || data.status === 'existing_user') {
         setStep("password");
+      } else {
+        setError(`El estado del usuario '${data.status}' no permite el acceso.`);
       }
     } catch (err) {
       setError(err.message || "Error de conexión");
@@ -44,80 +36,31 @@ const LoginPage = () => {
     }
   };
 
-  const handlePassword = async (e) => {
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams();
-      params.append("username", email);
-      params.append("password", password);
-      const response = await fetch("https://backend-475190189080.us-central1.run.app/api/v1/auth/login/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: params.toString(),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || "Credenciales inválidas");
-      }
-
-      const tokenData = await response.json();
-      localStorage.setItem('authToken', JSON.stringify(tokenData));
-
-      try {
-        const payloadBase64 = tokenData.access_token.split('.')[1];
-        const decodedPayload = JSON.parse(atob(payloadBase64));
-
-        // Extraer y normalizar el rol
-        let userRole = 'Usuario'; // Rol por defecto
-        if (decodedPayload.roles && Array.isArray(decodedPayload.roles) && decodedPayload.roles.length > 0) {
-          const role = decodedPayload.roles[0];
-          userRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
-        } else if (decodedPayload.role) {
-          const role = decodedPayload.role;
-          userRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
-        }
-
-        const userData = {
-          name: decodedPayload.full_name || 'Usuario',
-          role: userRole,
-        };
-        
-        login(userData);
-        navigate("/");
-      } catch (error) {
-        localStorage.removeItem('authToken');
-        throw new Error("Token de autenticación inválido: " + error.message);
-      }
-
+      await loginWithPassword(identifier, password);
+      navigate("/");
     } catch (err) {
-      setError(err.message || "Error de conexión");
+      setError(err.message || "Credenciales inválidas");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFirstTime = async (e) => {
+  const handleFirstTimeSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("https://backend-475190189080.us-central1.run.app/api/v1/auth/login/first-time", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier: email, password: newPassword }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || "No se pudo crear la contraseña");
-      }
-      setPassword(newPassword);
-      setStep("password");
-      setError("Contraseña creada, por favor ingresa de nuevo.");
+      await firstTimeLogin(identifier, newPassword);
+      // Después de crear la contraseña, intentar el login automáticamente
+      await loginWithPassword(identifier, newPassword);
+      navigate("/");
     } catch (err) {
-      setError(err.message || "Error de conexión");
+      setError(err.message || "No se pudo crear la contraseña");
     } finally {
       setLoading(false);
     }
@@ -147,11 +90,11 @@ const LoginPage = () => {
             <p className="text-gray-600">El corazon de Renovar Financiera</p>
           </div>
           {step === "identifier" && (
-            <form onSubmit={handleIdentifier} className="w-full">
+            <form onSubmit={handleIdentifierSubmit} className="w-full">
               <h2 className="text-lg font-semibold mb-4 text-center text-gray-700">Inicia Sesión</h2>
               <div className="mb-4">
-                <label className="block mb-1 text-sm font-medium text-gray-700">Correo Electrónico - Usuario Admminfo</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="usuario@correo.com" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <label className="block mb-1 text-sm font-medium text-gray-700">Correo Electrónico o Usuario Adminfo</label>
+                <input type="text" value={identifier} onChange={(e) => setIdentifier(e.target.value)} required placeholder="usuario@correo.com o tu código" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-2 rounded-md font-semibold hover:bg-blue-700 transition disabled:bg-blue-300">
                 {loading ? "Verificando..." : "Siguiente"}
@@ -160,8 +103,8 @@ const LoginPage = () => {
           )}
 
           {step === "password" && (
-            <form onSubmit={handlePassword} className="w-full">
-                <h2 className="text-lg font-semibold mb-4 text-center text-gray-700">Ingresa tu contraseña</h2>
+            <form onSubmit={handlePasswordSubmit} className="w-full">
+                <h2 className="text-lg font-semibold mb-4 text-center text-gray-700">Hola, {userInfo?.full_name}</h2>
                 <div className="mb-4">
                     <label className="block mb-1 text-sm font-medium text-gray-700">Contraseña</label>
                     <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -173,8 +116,8 @@ const LoginPage = () => {
           )}
 
           {step === "firstTime" && (
-             <form onSubmit={handleFirstTime} className="w-full">
-                <h2 className="text-lg font-semibold mb-4 text-center text-gray-700">Crea tu contraseña</h2>
+             <form onSubmit={handleFirstTimeSubmit} className="w-full">
+                <h2 className="text-lg font-semibold mb-4 text-center text-gray-700">Crea tu contraseña, {userInfo?.full_name}</h2>
                 <p className="text-sm text-center text-gray-500 mb-4">Es tu primer acceso. Por favor, crea una contraseña segura.</p>
                 <div className="mb-4">
                     <label className="block mb-1 text-sm font-medium text-gray-700">Nueva contraseña</label>

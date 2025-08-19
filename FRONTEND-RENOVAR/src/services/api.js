@@ -11,10 +11,14 @@ const getAuthToken = () => {
 };
 
 const apiRequest = async (endpoint, method = 'GET', body = null) => {
+  const token = getAuthToken();
   const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${getAuthToken()}`,
   };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
   const config = {
     method,
@@ -40,6 +44,31 @@ const apiRequest = async (endpoint, method = 'GET', body = null) => {
   }
 };
 
+// --- Endpoints de Autenticación ---
+export const checkUserIdentifier = (identifier) => apiRequest('/auth/login/check-identifier', 'POST', { identifier });
+export const loginWithPassword = (username, password) => {
+  const formData = new URLSearchParams();
+  formData.append('username', username);
+  formData.append('password', password);
+  
+  return fetch(`${BASE_URL}/auth/login/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: formData,
+  }).then(async response => {
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Error en el login');
+    }
+    return response.json();
+  });
+};
+export const firstTimeLogin = (identifier, password) => apiRequest('/auth/login/first-time', 'POST', { identifier, password });
+
+// --- Endpoints de Usuario ---
+export const changePassword = (current_password, new_password) => apiRequest('/users/me/change-password', 'PUT', { current_password, new_password });
+
+
 // --- Endpoints de Segmentación ---
 export const getAvailableFilterFields = () => apiRequest('/audience/available-filters');
 export const getDistinctValues = (fieldName) => apiRequest(`/audience/filters/distinct-values/${fieldName}`);
@@ -63,6 +92,11 @@ export const getTemplates = () => apiRequest('/templates/');
 export const getTemplatesByStatus = (status) => apiRequest(`/templates/?status=${status}`);
 
 export const createTemplate = (templateData) => apiRequest('/templates/', 'POST', templateData);
+
+// --- Endpoints de Notificaciones ---
+export const getNotifications = () => apiRequest('/notifications/');
+export const getUnreadNotificationsCount = () => apiRequest('/notifications/unread-count');
+export const markNotificationAsRead = (notificationId) => apiRequest(`/notifications/${notificationId}/read`, 'PATCH');
 
 export const getTemplatePreview = (templateId) => apiRequest(`/templates/${templateId}/preview`);
 export const getTemplateById = (templateId) => apiRequest(`/templates/${templateId}`);

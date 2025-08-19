@@ -1,19 +1,9 @@
 import React from 'react';
 
-/*
-  Componente multi-select de roles.
-  Props nuevas:
-    selectedRoles: array ['DEUDOR'] | ['CODEUDOR'] | ['DEUDOR','CODEUDOR']
-    onChange: (rolesArray) => void
-  Compatibilidad retro:
-    selectedRole / onRoleChange todavía funcionan (internamente se adaptan).
-  Lógica envío:
-    Si ambos => se sugiere enviar target_role = 'BOTH' en el payload (el backend debe soportarlo).
-*/
-
 const ROLES = [
   { id: 'DEUDOR', name: 'Deudor' },
   { id: 'CODEUDOR', name: 'Codeudor' },
+  { id: 'AMBAS', name: 'Ambas' },
 ];
 
 const STRATEGIES = [
@@ -21,26 +11,12 @@ const STRATEGIES = [
   { id: 'ALL', name: 'Enviar a todos los que se encuentren' },
 ];
 
-const TargetRoleSwitch = ({ selectedRoles, onChange, codebtorStrategy, onCodebtorStrategyChange }) => {
-  const effectiveRoles = React.useMemo(() => {
-    if (Array.isArray(selectedRoles) && selectedRoles.length) return selectedRoles;
-    return ['DEUDOR'];
-  }, [selectedRoles]);
+const TargetRoleSwitch = ({ selectedRole, onChange, codebtorStrategy, onCodebtorStrategyChange }) => {
+  const showStrategySelector = selectedRole === 'CODEUDOR' || selectedRole === 'AMBAS';
 
-  const emitRoles = (next) => {
-    if (onChange) onChange(next);
-  };
-
-  const toggle = (roleId) => {
-    const next = [roleId]; // Siempre selecciona solo uno
-    emitRoles(next);
-  };
-
-  const showStrategySelector = effectiveRoles.includes('CODEUDOR');
-
-  const getButtonClasses = (active) => {
+  const getButtonClasses = (roleId) => {
     const base = 'flex-1 py-2 px-4 text-sm font-medium transition-colors duration-200 focus:outline-none rounded-lg';
-    return active ? `${base} bg-blue-600 text-white shadow` : `${base} bg-gray-200 text-gray-700 hover:bg-gray-300`;
+    return selectedRole === roleId ? `${base} bg-blue-600 text-white shadow` : `${base} bg-gray-200 text-gray-700 hover:bg-gray-300`;
   };
 
   return (
@@ -53,8 +29,8 @@ const TargetRoleSwitch = ({ selectedRoles, onChange, codebtorStrategy, onCodebto
           <button
             key={role.id}
             type="button"
-            onClick={() => toggle(role.id)}
-            className={getButtonClasses(effectiveRoles.includes(role.id))}
+            onClick={() => onChange(role.id)}
+            className={getButtonClasses(role.id)}
           >
             {role.name}
           </button>
@@ -78,10 +54,6 @@ const TargetRoleSwitch = ({ selectedRoles, onChange, codebtorStrategy, onCodebto
           </select>
         </div>
       )}
-
-      <p className="mt-2 text-xs text-gray-500">
-        Valor que se enviará: {effectiveRoles[0]}.
-      </p>
     </div>
   );
 };

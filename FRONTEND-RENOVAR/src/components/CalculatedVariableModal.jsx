@@ -63,6 +63,7 @@ const CalculatedVariableModal = ({ isOpen, onClose, onInsert, variables }) => {
               <option value="+">Suma (+)</option>
               <option value="-">Resta (-)</option>
               <option value="*">Multiplicación (*)</option>
+              <option value="/">División (/)</option>
             </select>
           </div>
 
