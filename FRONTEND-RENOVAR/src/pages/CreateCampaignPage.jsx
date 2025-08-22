@@ -5,10 +5,10 @@ import Step2_Segmentation from '../components/wizards/Step2_Segmentation';
 import Step3_Template from '../components/wizards/Step3_Template';
 import Step4_Scheduling from '../components/wizards/Step4_Scheduling';
 import Step5_Confirmation from '../components/wizards/Step5_Confirmation';
-import { createAndLaunchCampaign, createSchedule, createAudienceFilter } from '../services/api';
+import { createAndLaunchCampaign, createSchedule, createSimpleFilter } from '../services/api';
 import CampaignScheduleCreate from '../schemas/CampaignScheduleCreate';
-import AudienceFilterCreate from '../schemas/AudienceFilterCreate';
 import CampaignCreate from '../schemas/CampaignCreate';
+import AudienceFilterSimpleCreate from '../schemas/AudienceFilterSimpleCreate';
 
 
 // --- Iconos para el Stepper ---
@@ -65,7 +65,7 @@ const CreateCampaignPage = () => {
 
   // El botón "Siguiente" en el primer paso estará deshabilitado si no se ha seleccionado un canal
   // o si el nombre de la campaña tiene menos de 7 caracteres.
-  const hasAudienceFilter = !!campaignData.audience_filter_id || (campaignData.rules && campaignData.rules.length > 0);
+  const hasAudienceFilter = !!campaignData.audience_filter_id || (campaignData.definition && (campaignData.definition.general?.length > 0 || campaignData.definition.exclude?.length > 0));
   const isCodebtorStrategyMissing = campaignData.target_role === 'CODEUDOR' && !campaignData.codebtor_strategy;
 
   // Validaciones:
@@ -95,11 +95,11 @@ const CreateCampaignPage = () => {
 
       let filterIdToUse = campaignData.audience_filter_id;
 
-      // Si se ha creado un filtro nuevo (hay reglas), crearlo primero
-      if (campaignData.rules && campaignData.rules.length > 0) {
+      // Si se ha creado un filtro nuevo (hay definición), crearlo primero
+      if (campaignData.definition && (campaignData.definition.general?.length > 0 || campaignData.definition.exclude?.length > 0)) {
         const filterName = `Filtro para Campaña: ${campaignData.name}`;
-        const newFilterPayload = new AudienceFilterCreate(filterName, campaignData.rules);
-        const createdFilter = await createAudienceFilter(newFilterPayload);
+        const newFilterPayload = new AudienceFilterSimpleCreate(filterName, campaignData.definition);
+        const createdFilter = await createSimpleFilter(newFilterPayload);
         filterIdToUse = createdFilter.id;
       }
 

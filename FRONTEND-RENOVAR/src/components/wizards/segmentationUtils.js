@@ -1,14 +1,17 @@
 // --- Constantes para Segmentación ---
 export const segmentationOperators = [
-  { id: 'GT', name: 'Mayor que >' }, 
-  { id: 'LT', name: 'Menor que <' }, 
-  { id: 'EQ', name: 'Igual =' },
-  { id: 'NEQ', name: 'No es igual !=' }, 
-  { id: 'GTE', name: 'Mayor o igual que >=' }, 
-  { id: 'LTE', name: 'Menor o igual que <=' },
-  { id: 'CONTAINS', name: 'Contiene' }, 
-  { id: 'IN', name: 'En' }, 
-  { id: 'NOT_IN', name: 'No en' }
+  { id: 'eq', name: 'Igual a' },
+  { id: 'neq', name: 'Diferente de' },
+  { id: 'gt', name: 'Mayor que' },
+  { id: 'gte', name: 'Mayor o igual que' },
+  { id: 'lt', name: 'Menor que' },
+  { id: 'lte', name: 'Menor o igual que' },
+  { id: 'in', name: 'Está en (lista)' },
+  { id: 'not_in', name: 'No está en (lista)' },
+  { id: 'contains', name: 'Contiene (texto)' },
+  { id: 'between', name: 'Está entre' },
+  { id: 'is_null', name: 'Es nulo' },
+  { id: 'is_not_null', name: 'No es nulo' },
 ];
 
 // --- Funciones de ayuda para el payload ---

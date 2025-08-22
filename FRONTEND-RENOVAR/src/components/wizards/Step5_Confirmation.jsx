@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getSavedFilters } from '../../services/api';
+import { getSimpleFilters } from '../../services/api';
 import EmailPreview from './EmailPreview';
-import FilterRulesPreview from './FilterRulesPreview';
+import SimpleFilterRulesPreview from './SimpleFilterRulesPreview';
 import { 
   DetailItem, 
   WhatsAppIcon, 
@@ -11,28 +11,30 @@ import {
 
 const Step5_Confirmation = ({ campaignData }) => {
   const [audienceName, setAudienceName] = useState('Cargando...');
-  const [audienceRules, setAudienceRules] = useState([]);
+  const [audienceDefinition, setAudienceDefinition] = useState(null);
   // Los datos de la plantilla y el conteo ahora vienen directamente de campaignData
   const { templateName, previewContent, previewSubject, client_count = 0 } = campaignData;
 
   useEffect(() => {
     if (campaignData.audience_filter_id) {
-      getSavedFilters().then(filters => {
+      getSimpleFilters().then(filters => {
         const found = filters.find(f => f.id === campaignData.audience_filter_id);
         if (found) {
           setAudienceName(found.name);
-          setAudienceRules(found.rules);
+          setAudienceDefinition(found.definition);
         } else {
           setAudienceName('Filtro no encontrado');
-          setAudienceRules([]);
+          setAudienceDefinition(null);
         }
       });
     } else {
-      setAudienceName(`Filtro Nuevo (${campaignData.rules?.length || 0} condiciones)`);
-      setAudienceRules(campaignData.rules || []);
+      const generalCount = campaignData.definition?.general?.length || 0;
+      const excludeCount = campaignData.definition?.exclude?.reduce((acc, group) => acc + group.length, 0) || 0;
+      setAudienceName(`Filtro Nuevo (${generalCount + excludeCount} condiciones)`);
+      setAudienceDefinition(campaignData.definition || null);
     }
 
-  }, [campaignData.audience_filter_id, campaignData.rules]);
+  }, [campaignData.audience_filter_id, campaignData.definition]);
 
   const getChannelIcon = () => {
     const iconProps = { className: "h-6 w-6 mr-2" };
@@ -81,7 +83,7 @@ const Step5_Confirmation = ({ campaignData }) => {
         </DetailItem>
         <DetailItem label="Audiencia">
           {audienceName}
-          <FilterRulesPreview rules={audienceRules} />
+          <SimpleFilterRulesPreview definition={audienceDefinition} />
         </DetailItem>
         <DetailItem label="Público Dirigido">
           {campaignData.target_role === 'DEUDOR' ? 'Deudor' : campaignData.target_role === 'CODEUDOR' ? 'Codeudor' : 'Ambas'}

@@ -72,12 +72,13 @@ export const changePassword = (current_password, new_password) => apiRequest('/u
 // --- Endpoints de Segmentación ---
 export const getAvailableFilterFields = () => apiRequest('/audience/available-filters');
 export const getDistinctValues = (fieldName) => apiRequest(`/audience/filters/distinct-values/${fieldName}`);
-export const getSavedFilters = () => apiRequest('/audience/filters');
-export const getClientCount = (rules) => apiRequest('/audience/count', 'POST', rules);
-export const createAudienceFilter = (filterData) => apiRequest('/audience/filters', 'POST', filterData);
+export const getSimpleFilters = () => apiRequest('/audience/filters/simple');
+export const getSimpleClientCount = (definition) => apiRequest('/audience/count/simple', 'POST', definition);
+export const createSimpleFilter = (filterData) => apiRequest('/audience/filters/simple', 'POST', filterData);
 
 // --- Endpoints de Campañas ---
-export const getCampaigns = () => apiRequest('/campaigns/');
+export const getCampaignStats = () => apiRequest('/campaigns/stats');
+export const refreshCampaignStats = () => apiRequest('/campaigns/stats/refresh', 'POST');
 export const createAndLaunchCampaign = (campaignData) => apiRequest('/campaigns/', 'POST', campaignData);
 
 // --- Endpoints de Campañas Recurrentes (Schedules) ---

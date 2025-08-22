@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import FilterBuilder from './FilterBuilder';
+import SimpleFilterBuilder from './SimpleFilterBuilder';
 import SavedFilters from './SavedFilters';
 import TargetRoleSwitch from './TargetRoleSwitch';
 
 const Step2_Segmentation = ({ campaignData, setCampaignData }) => {
   const [activeTab, setActiveTab] = useState('saved');
   const [clientCount, setClientCount] = useState(campaignData.client_count || 0);
-  const [initialConditions, setInitialConditions] = useState(null);
+  const [initialDefinition, setInitialDefinition] = useState(null);
   const [targetRole, setTargetRole] = useState(campaignData.target_role || 'DEUDOR');
 
   useEffect(() => {
@@ -14,9 +14,9 @@ const Step2_Segmentation = ({ campaignData, setCampaignData }) => {
   }, [targetRole, setCampaignData]);
 
   useEffect(() => {
-    if (campaignData.rules && campaignData.rules.length > 0) {
+    if (campaignData.definition) {
       setActiveTab('create');
-      setInitialConditions(campaignData.rules.map(r => ({ ...r, id: Date.now() + Math.random() })));
+      setInitialDefinition(campaignData.definition);
     } else if (campaignData.audience_filter_id) {
       setActiveTab('saved');
     }
@@ -30,12 +30,12 @@ const Step2_Segmentation = ({ campaignData, setCampaignData }) => {
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setClientCount(0);
-    setInitialConditions(null);
-    setCampaignData(prev => ({ ...prev, rules: [], audience_filter_id: null, client_count: 0 }));
+    setInitialDefinition(null);
+    setCampaignData(prev => ({ ...prev, definition: null, audience_filter_id: null, client_count: 0 }));
   };
 
-  const handleEditFilter = (rules) => {
-    setInitialConditions(rules.map(r => ({...r, id: Date.now() + Math.random() })));
+  const handleEditFilter = (definition) => {
+    setInitialDefinition(definition);
     setActiveTab('create');
   };
 
@@ -60,18 +60,18 @@ const Step2_Segmentation = ({ campaignData, setCampaignData }) => {
           </button>
         </div>
 
-        {activeTab === 'create' ? 
-            <FilterBuilder 
-              setClientCount={handleClientCountChange} 
-              setCampaignData={setCampaignData} 
-              initialConditions={initialConditions} 
-              onSave={() => handleTabChange('saved')} 
-            /> : 
-            <SavedFilters 
-              setClientCount={handleClientCountChange} 
-              setCampaignData={setCampaignData} 
-              onEdit={handleEditFilter} 
-              campaignData={campaignData} 
+        {activeTab === 'create' ?
+            <SimpleFilterBuilder
+              setClientCount={handleClientCountChange}
+              setCampaignData={setCampaignData}
+              initialDefinition={initialDefinition}
+              onSave={() => handleTabChange('saved')}
+            /> :
+            <SavedFilters
+              setClientCount={handleClientCountChange}
+              setCampaignData={setCampaignData}
+              onEdit={handleEditFilter}
+              campaignData={campaignData}
             />
         }
 
@@ -85,7 +85,7 @@ const Step2_Segmentation = ({ campaignData, setCampaignData }) => {
         <div className="mt-6 p-4 bg-blue-50 rounded-lg text-center">
             <p className="text-blue-800">Número de Clientes Coincidentes: <span className="font-bold">{clientCount.toLocaleString()}</span></p>
         </div>
-        {!(campaignData.audience_filter_id || (campaignData.rules && campaignData.rules.length > 0)) && (
+        {!(campaignData.audience_filter_id || (campaignData.definition && (campaignData.definition.general?.length > 0 || campaignData.definition.exclude?.length > 0))) && (
           <div className="mt-4 p-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-700">
             Debes seleccionar un filtro guardado o construir uno nuevo antes de continuar.
           </div>

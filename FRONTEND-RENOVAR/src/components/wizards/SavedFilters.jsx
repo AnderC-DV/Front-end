@@ -1,46 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { getSavedFilters, getClientCount } from '../../services/api';
-import { segmentationOperators } from './segmentationUtils';
-
-const operatorMap = segmentationOperators.reduce((acc, op) => {
-    acc[op.id] = op.name;
-    return acc;
-}, {});
+import { getSimpleFilters, getSimpleClientCount } from '../../services/api';
+import SimpleFilterRulesPreview from './SimpleFilterRulesPreview';
 
 const SavedFilters = ({ setClientCount, setCampaignData, onEdit, campaignData }) => {
     const [savedFilters, setSavedFilters] = useState([]);
     const [selectedFilter, setSelectedFilter] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const fetchFilters = async () => {
+        setLoading(true);
+        try {
+            const data = await getSimpleFilters();
+            setSavedFilters(data);
+        } catch (error) {
+            console.error("Error al cargar filtros guardados", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchFilters = async () => {
-            setLoading(true);
-            try {
-                const data = await getSavedFilters();
-                setSavedFilters(data);
-            } catch (error) {
-                console.error("Error al cargar filtros guardados", error);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchFilters();
     }, []);
 
     useEffect(() => {
         if (savedFilters.length > 0 && campaignData.audience_filter_id) {
             const preSelectedFilter = savedFilters.find(f => f.id === campaignData.audience_filter_id);
-            if (preSelectedFilter) {
-                setSelectedFilter(preSelectedFilter);
-            }
+            setSelectedFilter(preSelectedFilter || null);
         } else {
             setSelectedFilter(null);
         }
     }, [savedFilters, campaignData.audience_filter_id]);
 
     useEffect(() => {
-        if (selectedFilter) {
-            getClientCount(selectedFilter.rules).then(res => setClientCount(res.match_count));
+        if (selectedFilter && selectedFilter.definition) {
+            getSimpleClientCount(selectedFilter.definition).then(res => setClientCount(res.match_count));
         } else {
             setClientCount(0);
         }
@@ -51,9 +45,9 @@ const SavedFilters = ({ setClientCount, setCampaignData, onEdit, campaignData })
         const filter = savedFilters.find(f => f.id === filterId);
         setSelectedFilter(filter);
         if (filter) {
-            setCampaignData(prev => ({ ...prev, audience_filter_id: filterId, rules: [] }));
+            setCampaignData(prev => ({ ...prev, audience_filter_id: filterId, definition: filter.definition }));
         } else {
-            setCampaignData(prev => ({ ...prev, audience_filter_id: null, rules: [] }));
+            setCampaignData(prev => ({ ...prev, audience_filter_id: null, definition: null }));
         }
     };
 
@@ -71,22 +65,18 @@ const SavedFilters = ({ setClientCount, setCampaignData, onEdit, campaignData })
                 </select>
                 {selectedFilter && (
                     <div className="mt-4 flex justify-end gap-2">
-                        <button onClick={() => onEdit(selectedFilter.rules)} className="text-sm text-blue-600 hover:underline">
+                        <button onClick={() => onEdit(selectedFilter.definition)} className="text-sm text-blue-600 hover:underline">
                             Editar y Guardar como Nuevo
                         </button>
                     </div>
                 )}
             </div>
             <div>
-                {selectedFilter && (
+                {selectedFilter && selectedFilter.definition && (
                     <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Reglas del Filtro</h4>
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Definición del Filtro</h4>
                         <div className="p-4 bg-gray-50 rounded-lg border max-h-48 overflow-y-auto">
-                            {selectedFilter.rules.map((rule, index) => (
-                                <div key={index} className="text-sm text-gray-600 mb-1">
-                                    <span className="font-semibold">{rule.field_name}</span> {operatorMap[rule.operator] || rule.operator} <span className="font-semibold">{rule.value}</span>
-                                </div>
-                            ))}
+                           <SimpleFilterRulesPreview definition={selectedFilter.definition} />
                         </div>
                     </div>
                 )}

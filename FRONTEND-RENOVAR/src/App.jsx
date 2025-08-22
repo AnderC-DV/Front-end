@@ -1,12 +1,13 @@
 import React from "react";
 import { AppRouter } from "./routes/AppRouter";
-import NotificationProvider from "./context/NotificationContext";
+import { Toaster } from "sonner";
 
 function App() {
   return (
-    <NotificationProvider>
+    <>
       <AppRouter />
-    </NotificationProvider>
+      <Toaster richColors position="top-right" />
+    </>
   );
 }
 

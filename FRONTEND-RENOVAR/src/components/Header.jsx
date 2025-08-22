@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/LogoATVertical.png';
-import NotificationIcon from './NotificationIcon';
+// import NotificationIcon from './NotificationIcon';
 
 // --- Iconos para el menú de usuario ---
 const UserIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
@@ -84,7 +84,7 @@ const Header = ({ onOpenChangePassword }) => {
       </nav>
 
       <div className="flex items-center space-x-4">
-        <NotificationIcon />
+        {/* <NotificationIcon /> */}
         <div className="relative" ref={menuRef}>
           <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="flex items-center focus:outline-none">
             <div className="text-right mr-3">

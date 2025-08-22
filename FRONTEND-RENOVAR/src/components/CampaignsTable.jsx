@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import CampaignActionMenu from "./CampaignActionMenu";
-import { getCampaigns } from "../services/api";
+import { getCampaignStats, refreshCampaignStats } from "../services/api";
+import { toast } from "sonner";
 
 // --- Helper para obtener el ícono y la capitalización del canal ---
 const getChannelInfo = (channel) => {
@@ -32,29 +33,53 @@ export default function CampaignsTable({ channelFilter }) {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const fetchCampaignStats = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getCampaignStats();
+      setCampaigns(data);
+      setError(null);
+    } catch (err) {
+      setError("Error al cargar las estadísticas. Por favor, intente de nuevo.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchCampaigns = async () => {
-      try {
-        setLoading(true);
-        const data = await getCampaigns();
-        setCampaigns(data);
-        setError(null);
-      } catch (err) {
-        setError("Error al cargar las campañas. Por favor, intente de nuevo más tarde.");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetchCampaignStats();
+  }, [fetchCampaignStats]);
 
-    fetchCampaigns();
-  }, []);
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    toast.info("Solicitando actualización de estadísticas...");
+    try {
+      await refreshCampaignStats();
+      toast.success("La actualización se está procesando en segundo plano.", {
+        description: "Los datos se reflejarán en breve.",
+      });
+      // Opcional: re-fetch después de un delay para dar tiempo a la actualización
+      setTimeout(fetchCampaignStats, 5000); // Espera 5 segundos
+    } catch (err) {
+      toast.error("Error al solicitar la actualización.");
+      console.error(err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const filteredCampaigns =
     channelFilter === 'Todos'
       ? campaigns
       : campaigns.filter((c) => getChannelInfo(c.channel_type).name === channelFilter);
+
+  const paginatedCampaigns = filteredCampaigns.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const totalPages = Math.ceil(filteredCampaigns.length / rowsPerPage);
 
   if (loading) {
     return <div className="text-center p-10">Cargando campañas...</div>;
@@ -66,9 +91,21 @@ export default function CampaignsTable({ channelFilter }) {
 
   return (
     <div>
-      <div className="p-6 bg-white rounded-t-xl">
-        <h2 className="text-xl font-bold text-gray-800">Historial de Campañas</h2>
-        <p className="text-sm text-gray-500 mt-1">Todas las campañas creadas y su estado actual.</p>
+      <div className="p-6 bg-white rounded-t-xl flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">Historial de Campañas</h2>
+          <p className="text-sm text-gray-500 mt-1">Todas las campañas creadas y su estado actual.</p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+          style={{ backgroundColor: '#1e2939', ...( !isRefreshing ? { } : {} ) }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e2939ff'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#243043ff'}
+        >
+          {isRefreshing ? "Actualizando..." : "Actualizar Tabla"}
+        </button>
       </div>
       <div className="overflow-x-auto bg-white rounded-b-xl shadow-lg">
         <table className="min-w-full divide-y divide-gray-200">
@@ -98,7 +135,7 @@ export default function CampaignsTable({ channelFilter }) {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredCampaigns.map((c) => {
+            {paginatedCampaigns.map((c) => {
               const channelInfo = getChannelInfo(c.channel_type);
               const statusColor = getStatusColor(c.status);
               const formattedDate = c.updated_at ? new Date(c.updated_at).toLocaleString() : 'N/A';
@@ -119,9 +156,9 @@ export default function CampaignsTable({ channelFilter }) {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}`}>{c.status}</span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">{c.sent_count || 0}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">{c.delivered_count || 0}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">{c.read_count || 0}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">{c.enviados || 0}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">{c.entregados || 0}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">{c.leidos || 0}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formattedDate}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium relative">
                     <CampaignActionMenu campaign={c} />
@@ -131,6 +168,27 @@ export default function CampaignsTable({ channelFilter }) {
             })}
           </tbody>
         </table>
+        <div className="p-4 flex items-center justify-between">
+          <div>
+            <span className="text-sm text-gray-700">
+              Mostrando <span className="font-medium">{(currentPage - 1) * rowsPerPage + 1}</span> a <span className="font-medium">{Math.min(currentPage * rowsPerPage, filteredCampaigns.length)}</span> de <span className="font-medium">{filteredCampaigns.length}</span> resultados
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <select value={rowsPerPage} onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }} className="p-1 border rounded-md">
+              {[10, 25, 50].map(size => (
+                <option key={size} value={size}>Mostrar {size}</option>
+              ))}
+            </select>
+            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-1 border rounded-md disabled:opacity-50">
+              Anterior
+            </button>
+            <span className="text-sm">{currentPage} de {totalPages}</span>
+            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-1 border rounded-md disabled:opacity-50">
+              Siguiente
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

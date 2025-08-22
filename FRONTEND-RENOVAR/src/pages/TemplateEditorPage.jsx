@@ -5,6 +5,9 @@ import TemplateCreateSMS from '../schemas/TemplateCreateSMS';
 import TemplateCreateEmail from '../schemas/TemplateCreateEmail';
 import TemplateCreateWhatsApp from '../schemas/TemplateCreateWhatsApp';
 import CalculatedVariableModal from '../components/CalculatedVariableModal';
+import EmailEditor from '../components/EmailEditor';
+import SmsEditor from '../components/SmsEditor';
+import PolicyEditor from '../components/PolicyEditor';
 
 const TemplateEditorPage = () => {
   const { id } = useParams();
@@ -28,6 +31,7 @@ const TemplateEditorPage = () => {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [smsLimitExceeded, setSmsLimitExceeded] = useState(false); // bandera para mostrar alerta visual
+  const [searchTerm, setSearchTerm] = useState('');
   const contentRef = useRef(null);
 
   useEffect(() => {
@@ -63,27 +67,15 @@ const TemplateEditorPage = () => {
     fetchData();
   }, [id]);
 
-  const handleDragStart = (e, variableName) => {
-    e.dataTransfer.setData("text/plain", `{${variableName}}`);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    const variable = e.dataTransfer.getData("text/plain");
-    const { selectionStart, selectionEnd, value } = contentRef.current;
-    const newContent = value.substring(0, selectionStart) + variable + value.substring(selectionEnd);
-    setTemplate(prev => ({ ...prev, content: newContent }));
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
   const handleInsertCalculatedVariable = (variableString) => {
-    const { selectionStart, selectionEnd, value } = contentRef.current;
-    const newContent = value.substring(0, selectionStart) + variableString + value.substring(selectionEnd);
-    setTemplate(prev => ({ ...prev, content: newContent }));
-    contentRef.current.focus();
+    if (template.channel_type === 'EMAIL') {
+      setTemplate(prev => ({ ...prev, content: prev.content + variableString }));
+    } else if (contentRef.current) {
+      const { selectionStart, selectionEnd, value } = contentRef.current;
+      const newContent = value.substring(0, selectionStart) + variableString + value.substring(selectionEnd);
+      setTemplate(prev => ({ ...prev, content: newContent }));
+      contentRef.current.focus();
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -118,6 +110,10 @@ const TemplateEditorPage = () => {
       alert(`Error al guardar la plantilla: ${error.message}`);
     }
   };
+
+  const filteredVariables = variables.filter(v =>
+    v.variable_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) return <div className="p-8">Cargando editor...</div>;
 
@@ -210,45 +206,19 @@ const TemplateEditorPage = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2">
-              <label htmlFor="content" className="block text-sm font-medium text-gray-700">Contenido del Mensaje</label>
-              <textarea
-                id="content"
-                ref={contentRef}
-                value={template.content}
-                onChange={e => {
-                  const newContent = e.target.value;
-                  if (template.channel_type === 'SMS' && newContent.length > 300) {
-                    // No modificamos el contenido (misma lógica anterior), solo marcamos bandera
-                    setSmsLimitExceeded(true);
-                    return;
-                  } else if (smsLimitExceeded && newContent.length <= 300) {
-                    setSmsLimitExceeded(false);
-                  }
-                  setTemplate(prev => ({
-                    ...prev,
-                    content: newContent,
-                    components: {
-                      ...prev.components,
-                      body: {
-                        ...prev.components.body,
-                        text: newContent
-                      }
-                    }
-                  }));
-                }}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                rows="10"
-                className="mt-1 w-full p-2 border rounded-md"
-                placeholder="Escribe tu mensaje aquí y arrastra las variables desde la derecha."
-              ></textarea>
-              {template.channel_type === 'SMS' && (
-                <div className="mt-1 flex justify-between items-center text-xs">
-                  <span className={`font-medium ${smsLimitExceeded ? 'text-red-600' : 'text-gray-500'}`}>{template.content.length} / 300</span>
-                  {smsLimitExceeded && (
-                    <span className="text-red-600">Has superado el límite de 300 caracteres. El texto adicional no se guardará.</span>
-                  )}
-                </div>
+              {template.channel_type === 'EMAIL' ? (
+                <EmailEditor
+                  content={template.content}
+                  setTemplate={setTemplate}
+                />
+              ) : (
+                <SmsEditor
+                  content={template.content}
+                  setTemplate={setTemplate}
+                  contentRef={contentRef}
+                  smsLimitExceeded={smsLimitExceeded}
+                  setSmsLimitExceeded={setSmsLimitExceeded}
+                />
               )}
             </div>
             <div>
@@ -262,23 +232,35 @@ const TemplateEditorPage = () => {
                   + Campo Calculado
                 </button>
               </div>
+              <div className="mt-4">
+                <input
+                  type="text"
+                  placeholder="Buscar variable..."
+                  className="w-full p-2 border rounded-md"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
               <div className="mt-2 border rounded-md p-2 h-64 overflow-y-auto bg-gray-50">
-                {variables.map(v => (
+                {filteredVariables.map(v => (
                   <div
                     key={v.variable_name}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, v.variable_name)}
-                    className="p-2 my-1 bg-white border rounded cursor-grab hover:bg-blue-50"
+                    className="p-2 my-1 bg-white border rounded cursor-move hover:bg-blue-50"
                     title={v.description}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', `${v.variable_name}`);
+                    }}
                   >
-                    {`{${v.variable_name}}`}
+                    {`${v.variable_name}`}
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
-          <div className="mt-8 flex justify-end">
+          <div className="mt-8 flex justify-between items-center">
+            <PolicyEditor onInsert={handleInsertCalculatedVariable} />
             <button type="submit" className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
               Guardar Plantilla
             </button>

@@ -8,12 +8,12 @@ import TemplateManagerPage from '../pages/TemplateManagerPage';
 import TemplateEditorPage from '../pages/TemplateEditorPage';
 import TemplateApprovalPage from '../pages/TemplateApprovalPage';
 import ProtectedRoute from './ProtectedRoute';
-
 export const AppRouter = () => {
   return (
     <Routes>
       {/* Ruta de Login (Pública) */}
-      <Route path="/login" element={<LoginPage />} />
+
+  <Route path="/login" element={<LoginPage />} />
 
       {/* Rutas Protegidas */}
       <Route path="/" element={<ProtectedRoute />}>
