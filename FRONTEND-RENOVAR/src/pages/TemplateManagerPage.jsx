@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { getTemplates, createTemplate } from '../services/api';
 import TemplateActionMenu from '../components/TemplateActionMenu';
+import TemplatePreviewModal from '../components/TemplatePreviewModal';
 
 // --- Iconos ---
 const WhatsAppIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657A8 8 0 018.343 7.343m9.314 9.314a8 8 0 01-9.314-9.314m0 0A8.003 8.003 0 002 8c0 4.418 3.582 8 8 8 1.26 0 2.45-.293 3.536-.813" /></svg>;
@@ -73,6 +74,7 @@ const TemplateManagerPage = () => {
   const [templates, setTemplates] = useState([]);
   const [filteredTemplates, setFilteredTemplates] = useState([]);
   const [templateToDuplicate, setTemplateToDuplicate] = useState(null);
+  const [previewTemplate, setPreviewTemplate] = useState(null); // plantilla seleccionada para previsualizar
   const [activeChannel, setActiveChannel] = useState('WHATSAPP');
   const [activeStatus, setActiveStatus] = useState('ALL'); // Nuevo estado para el filtro de estado
   const [loading, setLoading] = useState(true);
@@ -189,7 +191,11 @@ const TemplateManagerPage = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-md truncate">{template.content}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm"><StatusBadge status={template.status} /></td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm relative">
-                  <TemplateActionMenu template={template} onDuplicate={setTemplateToDuplicate} />
+                  <TemplateActionMenu
+                    template={template}
+                    onDuplicate={setTemplateToDuplicate}
+                    onPreview={(tpl) => setPreviewTemplate(tpl)}
+                  />
                 </td>
               </tr>
             ))
@@ -215,6 +221,12 @@ const TemplateManagerPage = () => {
               alert(`Error al duplicar la plantilla: ${error.message}`);
             }
           }}
+        />
+      )}
+      {previewTemplate && (
+        <TemplatePreviewModal
+          template={previewTemplate}
+          onClose={() => setPreviewTemplate(null)}
         />
       )}
     </div>

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import TemplateReviewModal from './TemplateReviewModal';
+import TemplatePreviewModal from './TemplatePreviewModal';
+import TemplateActionMenu from './TemplateActionMenu';
 import { approveTemplate, rejectTemplate } from '../services/api';
 
 const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -78,6 +81,12 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
   const openReviewModal = (template) => {
     setSelectedTemplate(template);
     setIsModalOpen(true);
+  };
+
+  const openPreviewModal = (template) => {
+    console.log('openPreviewModal called in TemplateList for template:', template.id);
+    setSelectedTemplate(template);
+    setIsPreviewModalOpen(true);
   };
   
   // Función para aprobar o rechazar una plantilla
@@ -164,31 +173,12 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
                       {template.created_at ? new Date(template.created_at).toLocaleString() : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-3">
-                        {/* Ver detalles icon */}
-                        <button className="text-gray-500 hover:text-indigo-600 transition-colors" title="Ver detalles" onClick={() => openReviewModal(template)} disabled={isLoading}>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </button>
-                        {template.status === 'PENDING_INTERNAL_APPROVAL' && (
-                          <>
-                            {/* Aprobar icon */}
-                            <button className="text-gray-500 hover:text-green-600 transition-colors" title="Aprobar plantilla" onClick={() => handleTemplateReview(template.id, true)} disabled={isLoading}>
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                            </button>
-                            {/* Rechazar icon */}
-                            <button className="text-gray-500 hover:text-red-600 transition-colors" title="Rechazar plantilla" onClick={() => openReviewModal(template)} disabled={isLoading}>
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </>
-                        )}
-                      </div>
+                      <TemplateActionMenu
+                        template={template}
+                        onDuplicate={() => {}}
+                        onPreview={openPreviewModal}
+                        onReview={openReviewModal}
+                      />
                     </td>
                   </tr>
                 );
@@ -235,6 +225,12 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
           template={selectedTemplate} 
           onClose={() => setIsModalOpen(false)}
           onReview={handleTemplateReview}
+        />
+      )}
+      {isPreviewModalOpen && selectedTemplate && (
+        <TemplatePreviewModal
+          template={selectedTemplate}
+          onClose={() => setIsPreviewModalOpen(false)}
         />
       )}
       {/* Overlay de carga mientras se procesan acciones */}

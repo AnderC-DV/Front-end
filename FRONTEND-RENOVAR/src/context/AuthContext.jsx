@@ -39,6 +39,37 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('authToken');
   };
 
+  useEffect(() => {
+    let activityTimer;
+
+    const resetTimer = () => {
+      clearTimeout(activityTimer);
+      activityTimer = setTimeout(() => {
+        logout();
+      }, 15 * 60 * 1000); // 15 minutes
+    };
+
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    // Event listeners for user activity
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+    window.addEventListener('scroll', handleActivity);
+    window.addEventListener('click', handleActivity);
+
+    resetTimer(); // Initial timer setup
+
+    return () => {
+      clearTimeout(activityTimer);
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('scroll', handleActivity);
+      window.removeEventListener('click', handleActivity);
+    };
+  }, [user]);
+
   return (
     <AuthContext.Provider value={{ 
       user, 
