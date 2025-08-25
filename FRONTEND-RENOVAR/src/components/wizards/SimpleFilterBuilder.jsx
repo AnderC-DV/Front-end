@@ -6,8 +6,14 @@ import { toast } from 'sonner';
 
 // --- Sub-componentes ---
 const ConditionRow = ({ condition, onConditionChange, onRemove, fields, operators, path }) => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const isMultiValueOperator = ['in', 'not_in'].includes(condition.operator);
   const isNoValueOperator = ['is_null', 'is_not_null'].includes(condition.operator);
+  // Detectar si el campo seleccionado es de tipo fecha según metadata del backend o por heurística del nombre
+  const fieldMeta = fields.find(f => f.variable_name === condition.field);
+  const isDateField = !!fieldMeta && (
+    fieldMeta.data_type === 'date' || /fecha|date/i.test(fieldMeta.variable_name) || /fecha|date/i.test(fieldMeta.description || '')
+  );
 
   useEffect(() => {
     // Reset value based on operator type when operator changes
@@ -39,35 +45,75 @@ const ConditionRow = ({ condition, onConditionChange, onRemove, fields, operator
     }
   };
 
-  const handleValueChange = (e) => {
-    let newValue;
-    if (isMultiValueOperator) {
-      // For 'in' and 'not_in', if it's a multi-select, get all selected options
-      newValue = Array.from(e.target.selectedOptions, option => option.value);
-    } else {
-      newValue = e.target.value;
-    }
+  const handleMultiSelectChange = (valueToToggle) => {
+    const currentValues = Array.isArray(condition.value) ? condition.value : [];
+    const newValue = currentValues.includes(valueToToggle)
+      ? currentValues.filter(v => v !== valueToToggle)
+      : [...currentValues, valueToToggle];
     onConditionChange(path, 'value', newValue);
+  };
+
+  const handleSingleValueChange = (e) => {
+    let val = e.target.value;
+    // Normalizar formato de fecha AAAA-MM-DD si es campo fecha
+    if (isDateField && val) {
+      // El input type="date" ya entrega AAAA-MM-DD, pero normalizamos por seguridad
+      const m = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (m) val = `${m[1]}-${m[2]}-${m[3]}`;
+    }
+    onConditionChange(path, 'value', val);
   };
 
   const renderValueInput = () => {
     if (isNoValueOperator) {
       return <span className="text-sm text-gray-500 italic">No requiere valor</span>;
     } else if (isMultiValueOperator && condition.distinctValues && condition.distinctValues.length > 0) {
-      // For 'in' and 'not_in', use a multi-select dropdown
+      const selectedValues = Array.isArray(condition.value) ? condition.value : [];
+      const displayValue = selectedValues.length > 0
+        ? selectedValues.join(', ')
+        : 'Seleccionar Valores';
+
       return (
-        <select
-          multiple
-          value={Array.isArray(condition.value) ? condition.value : []}
-          onChange={handleValueChange}
-          className="w-full p-2 border rounded-md bg-white text-sm h-20"
-        >
-          {condition.distinctValues.map(v => <option key={v} value={v}>{v}</option>)}
-        </select>
+        <div className="relative">
+          <button
+            type="button"
+            className="w-full p-2 border border-gray-300 rounded-md bg-white text-sm text-left flex justify-between items-center focus:ring focus:ring-blue-200 focus:border-blue-400"
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          >
+            <span className={selectedValues.length === 0 ? 'text-gray-500' : ''}>
+              {displayValue}
+            </span>
+            <svg className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+          {isDropdownOpen && (
+            <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+              {condition.distinctValues.map(v => (
+                <label key={v} className="flex items-center p-2 hover:bg-gray-100 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedValues.includes(v)}
+                    onChange={() => handleMultiSelectChange(v)}
+                    className="form-checkbox h-4 w-4 text-blue-600 rounded"
+                  />
+                  <span className="ml-2 text-sm">{v}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    } else if (!isMultiValueOperator && !isNoValueOperator && isDateField) {
+      return (
+        <input
+          type="date"
+          value={condition.value || ''}
+          onChange={handleSingleValueChange}
+          className="w-full p-2 border rounded-md text-sm"
+        />
       );
     } else if (condition.distinctValues && condition.distinctValues.length > 0) {
       return (
-        <select value={condition.value} onChange={handleValueChange} className="w-full p-2 border rounded-md bg-white text-sm">
+        <select value={condition.value} onChange={handleSingleValueChange} className="w-full p-2 border rounded-md bg-white text-sm">
           <option value="">Seleccionar Valor</option>
           {condition.distinctValues.map(v => <option key={v} value={v}>{v}</option>)}
         </select>
@@ -77,7 +123,7 @@ const ConditionRow = ({ condition, onConditionChange, onRemove, fields, operator
         <input
           type="text"
           value={condition.value}
-          onChange={handleValueChange}
+          onChange={handleSingleValueChange}
           placeholder="Valor"
           className="w-full p-2 border rounded-md text-sm"
         />

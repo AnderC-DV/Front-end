@@ -9,6 +9,7 @@ import { createAndLaunchCampaign, createSchedule, createSimpleFilter } from '../
 import CampaignScheduleCreate from '../schemas/CampaignScheduleCreate';
 import CampaignCreate from '../schemas/CampaignCreate';
 import AudienceFilterSimpleCreate from '../schemas/AudienceFilterSimpleCreate';
+import FilterSavePromptModal from '../components/wizards/FilterSavePromptModal';
 
 
 // --- Iconos para el Stepper ---
@@ -62,6 +63,16 @@ const CreateCampaignPage = () => {
     previewSubject: '',
     previewContent: '',
   });
+  // Estado para el modal de decisión de guardado de filtro
+  const [showFilterPrompt, setShowFilterPrompt] = useState(false);
+  const [launchLoading, setLaunchLoading] = useState(false); // evita doble envío
+
+  // Determina si hay un filtro construido pero no guardado (definition sin audience_filter_id)
+  const hasUnsavedDefinition = !campaignData.audience_filter_id && (
+    campaignData.definition && (
+      (campaignData.definition.general?.length > 0) || (campaignData.definition.exclude?.length > 0)
+    )
+  );
 
   // El botón "Siguiente" en el primer paso estará deshabilitado si no se ha seleccionado un canal
   // o si el nombre de la campaña tiene menos de 7 caracteres.
@@ -92,37 +103,66 @@ const CreateCampaignPage = () => {
         alert('Debes seleccionar o construir un filtro antes de crear la campaña.');
         return;
       }
+      // Si hay definición sin guardar, primero mostrar modal de decisión
+      if (hasUnsavedDefinition) {
+        setShowFilterPrompt(true);
+        return; // Esperar decisión del usuario
+      }
 
-      let filterIdToUse = campaignData.audience_filter_id;
+      // Caso normal (ya tiene audience_filter_id) lanzar directo
+      await performLaunch(campaignData.audience_filter_id);
 
-      // Si se ha creado un filtro nuevo (hay definición), crearlo primero
-      if (campaignData.definition && (campaignData.definition.general?.length > 0 || campaignData.definition.exclude?.length > 0)) {
-        const filterName = `Filtro para Campaña: ${campaignData.name}`;
-        const newFilterPayload = new AudienceFilterSimpleCreate(filterName, campaignData.definition);
+    } catch (error) {
+      console.error("Error al crear la campaña:", error);
+      alert(`Error al crear la campaña: ${error.message}`);
+    }
+  };
+
+  /**
+   * Crea (si es necesario) el filtro final y lanza la campaña / schedule.
+   * @param {string|null} existingFilterId - si ya hay uno guardado.
+   * @param {object} saveOptions - { explicitName, description } si el usuario decidió guardar.
+   */
+  const performLaunch = async (existingFilterId = null, saveOptions = null) => {
+    try {
+      setLaunchLoading(true);
+      let filterIdToUse = existingFilterId;
+
+      // Crear filtro si no existe uno listo
+      if (!filterIdToUse) {
+        let finalName;
+        let finalDescription = null;
+        if (saveOptions?.explicitName) {
+          finalName = saveOptions.explicitName;
+          finalDescription = saveOptions.description || null;
+        } else {
+          // Nombre automático (flujo "no guardar" para el usuario)
+            finalName = `Filtro para Campaña: ${campaignData.name}`;
+        }
+        const newFilterPayload = new AudienceFilterSimpleCreate(finalName, campaignData.definition, finalDescription);
         const createdFilter = await createSimpleFilter(newFilterPayload);
         filterIdToUse = createdFilter.id;
       }
 
       if (!filterIdToUse) {
-        alert('No se pudo determinar el filtro de audiencia. Por favor, revisa la configuración.');
+        alert('No se pudo determinar el filtro de audiencia.');
         return;
       }
 
       if (campaignData.schedule_type === 'recurrent') {
         const schedulePayload = new CampaignScheduleCreate({
           name: campaignData.name,
-          channel_type: campaignData.channel,
-          message_template_id: campaignData.message_template_id,
-          audience_filter_id: filterIdToUse,
-          target_role: campaignData.target_role,
-          codebtor_strategy: campaignData.target_role === 'CODEUDOR' ? campaignData.codebtor_strategy : null,
-          ...campaignData.schedule_details
+            channel_type: campaignData.channel,
+            message_template_id: campaignData.message_template_id,
+            audience_filter_id: filterIdToUse,
+            target_role: campaignData.target_role,
+            codebtor_strategy: campaignData.target_role === 'CODEUDOR' ? campaignData.codebtor_strategy : null,
+            ...campaignData.schedule_details
         });
-        console.log("Creando schedule recurrente:", schedulePayload);
+        console.log('Creando schedule recurrente:', schedulePayload);
         await createSchedule(schedulePayload);
-        alert("¡Campaña recurrente creada con éxito!");
+        alert('¡Campaña recurrente creada con éxito!');
       } else {
-        // Lógica para campañas inmediatas o programadas
         const campaignPayload = new CampaignCreate({
           name: campaignData.name,
           channel_type: campaignData.channel,
@@ -132,14 +172,16 @@ const CreateCampaignPage = () => {
           codebtor_strategy: campaignData.target_role === 'CODEUDOR' ? campaignData.codebtor_strategy : null,
           scheduled_at: campaignData.scheduled_at || null,
         });
-        console.log("Enviando campaña única:", campaignPayload);
+        console.log('Enviando campaña única:', campaignPayload);
         await createAndLaunchCampaign(campaignPayload);
-        alert("¡Campaña creada y lanzada con éxito!");
+        alert('¡Campaña creada y lanzada con éxito!');
       }
       navigate('/campaigns');
     } catch (error) {
-      console.error("Error al crear la campaña:", error);
+      console.error('Error al crear la campaña:', error);
       alert(`Error al crear la campaña: ${error.message}`);
+    } finally {
+      setLaunchLoading(false);
     }
   };
 
@@ -195,10 +237,23 @@ const CreateCampaignPage = () => {
             {currentStep < 4 ? 'Siguiente' : 
              campaignData.schedule_type === 'recurrent' ? 'Crear Campaña Recurrente' :
              campaignData.schedule_type === 'scheduled' ? 'Programar Campaña' :
-             'Lanzar Campaña'}
+             (launchLoading ? 'Procesando...' : 'Lanzar Campaña')}
           </button>
         </div>
       </div>
+      {/* Modal de guardar filtro */}
+      <FilterSavePromptModal
+        open={showFilterPrompt}
+        defaultName={`Filtro para Campaña: ${campaignData.name}`}
+        loading={launchLoading}
+        onSaveExplicit={async (name, description) => {
+          await performLaunch(null, { explicitName: name, description });
+        }}
+        onSkip={async () => { // Lanzar sin guardar (nombre interno)
+          await performLaunch(null, null);
+        }}
+        onCancel={() => setShowFilterPrompt(false)}
+      />
     </div>
   );
 };

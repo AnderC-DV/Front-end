@@ -1,4 +1,4 @@
-const BASE_URL = "https://backend-475190189080.us-central1.run.app/api/v1";
+export const BASE_URL = "https://backend-475190189080.us-central1.run.app/api/v1";
 
 // Función para obtener el token de autenticación
 const getAuthToken = () => {
@@ -98,11 +98,12 @@ export const createTemplate = (templateData) => apiRequest('/templates/', 'POST'
 export const getNotifications = () => apiRequest('/notifications/');
 export const getUnreadNotificationsCount = () => apiRequest('/notifications/unread-count');
 export const markNotificationAsRead = (notificationId) => apiRequest(`/notifications/${notificationId}/read`, 'PATCH');
+export const markAllNotificationsAsRead = () => apiRequest('/notifications/read-all', 'POST');
 
 export const getTemplatePreview = (templateId) => apiRequest(`/templates/${templateId}/preview`);
 export const getTemplateById = (templateId) => apiRequest(`/templates/${templateId}`);
 export const getTemplateVariables = () => apiRequest('/templates/variables');
 export const getPendingTemplates = () => apiRequest('/templates/pending-review');
 export const approveTemplate = (templateId) => apiRequest(`/templates/${templateId}/internal-approve`, 'POST', {});
-export const rejectTemplate = (templateId, reason) => apiRequest(`/templates/${templateId}/internal-reject`, 'POST', { reason });
+export const rejectTemplate = (templateId, rejection_reason) => apiRequest(`/templates/${templateId}/internal-reject`, 'POST', { approve: false, rejection_reason });
 export const reviewTemplate = (templateId, reviewData) => apiRequest(`/templates/${templateId}/review`, 'POST', reviewData);

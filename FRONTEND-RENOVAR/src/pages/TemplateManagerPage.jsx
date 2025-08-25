@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { getTemplates, createTemplate } from '../services/api';
+import TemplateList from '../components/TemplateList'; // Importar TemplateList
 import TemplateActionMenu from '../components/TemplateActionMenu';
 import TemplatePreviewModal from '../components/TemplatePreviewModal';
 
@@ -78,6 +79,9 @@ const TemplateManagerPage = () => {
   const [activeChannel, setActiveChannel] = useState('WHATSAPP');
   const [activeStatus, setActiveStatus] = useState('ALL'); // Nuevo estado para el filtro de estado
   const [loading, setLoading] = useState(true);
+  // Estado para paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const fetchTemplates = useCallback(async () => {
     setLoading(true);
@@ -113,7 +117,9 @@ const TemplateManagerPage = () => {
     // Ordenamos por fecha de creación descendente
     filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     
-    setFilteredTemplates(filtered);
+  setFilteredTemplates(filtered);
+  // Reiniciar a primera página cuando cambien filtros o datos
+  setCurrentPage(1);
   }, [activeChannel, activeStatus, templates]);
 
   const getTabClasses = (channel) => {
@@ -171,38 +177,11 @@ const TemplateManagerPage = () => {
         <button onClick={() => setActiveStatus('REJECTED')} className={getStatusFilterClasses('REJECTED')}>Rechazadas</button>
     </div>
 
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre de Plantilla</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contenido</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {loading ? (
-            <tr><td colSpan="4" className="text-center py-8">Cargando...</td></tr>
-          ) : (
-            filteredTemplates.map(template => (
-              <tr key={template.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{template.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-md truncate">{template.content}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm"><StatusBadge status={template.status} /></td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm relative">
-                  <TemplateActionMenu
-                    template={template}
-                    onDuplicate={setTemplateToDuplicate}
-                    onPreview={(tpl) => setPreviewTemplate(tpl)}
-                  />
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
+    <TemplateList 
+      templates={filteredTemplates} 
+      onTemplateUpdated={fetchTemplates} 
+      statusFilter={activeStatus === 'REJECTED' ? 'REJECTED_INTERNAL' : activeStatus} 
+    />
     </div>
 
       {templateToDuplicate && (

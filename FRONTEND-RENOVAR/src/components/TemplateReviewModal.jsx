@@ -6,9 +6,11 @@ const TemplateReviewModal = ({ template, onClose, onReview }) => {
   const [isApproving, setIsApproving] = useState(true);
 
   const handleReview = () => {
-    if (!isApproving && !rejectionReason) {
-      alert('Por favor, proporciona una razón para el rechazo.');
-      return;
+    if (!isApproving) {
+      if (!rejectionReason || rejectionReason.trim().length < 10) {
+        alert('Por favor, proporciona una razón para el rechazo con al menos 10 caracteres.');
+        return;
+      }
     }
     onReview(template.id, isApproving, rejectionReason);
   };

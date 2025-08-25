@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import TemplateReviewModal from './TemplateReviewModal';
 import TemplatePreviewModal from './TemplatePreviewModal';
 import TemplateActionMenu from './TemplateActionMenu';
+import TemplateReviewModal from './TemplateReviewModal'; // Mantener para el modal de rechazo
 import { approveTemplate, rejectTemplate } from '../services/api';
 
 const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false); // Cambiado de isModalOpen a isReviewModalOpen
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -62,7 +62,7 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
           text: 'Pendiente Meta', 
           color: 'bg-orange-100 text-orange-700'
         };
-      case 'REJECTED':
+      case 'REJECTED_META':
         return { 
           text: 'Rechazada por Meta', 
           color: 'bg-red-200 text-red-800'
@@ -75,42 +75,59 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
     }
   };
 
-
-  
-  // Función para abrir el modal de revisión
-  const openReviewModal = (template) => {
-    setSelectedTemplate(template);
-    setIsModalOpen(true);
+  // Función para traducir los motivos de rechazo de Meta
+  const getTranslatedRejectionReason = (reason) => {
+    switch (reason) {
+      case 'NONE':
+        return 'Sin razón específica';
+      case 'INVALID_FORMAT':
+        return 'Formato inválido';
+      // Agrega más casos según sea necesario
+      default:
+        return reason || 'Razón desconocida';
+    }
   };
-
+  
+  // Función para abrir el modal de previsualización
   const openPreviewModal = (template) => {
-    console.log('openPreviewModal called in TemplateList for template:', template.id);
     setSelectedTemplate(template);
     setIsPreviewModalOpen(true);
   };
-  
-  // Función para aprobar o rechazar una plantilla
-  const handleTemplateReview = async (templateId, isApproved, rejectionReason = '') => {
+
+  // Función para abrir el modal de revisión (solo para rechazo ahora)
+  const openRejectModal = (template) => {
+    setSelectedTemplate(template);
+    setIsReviewModalOpen(true);
+  };
+
+  // Función para aprobar una plantilla directamente
+  const handleApproveTemplate = async (templateId) => {
     setIsLoading(true);
     try {
-      // Usar las funciones de la API para aprobar o rechazar
-      if (isApproved) {
-        await approveTemplate(templateId);
-      } else {
-        await rejectTemplate(templateId, rejectionReason);
-      }
-      
-      // Cerrar el modal y notificar al componente padre para actualizar la lista
-      setIsModalOpen(false);
+      await approveTemplate(templateId);
       if (onTemplateUpdated) {
         onTemplateUpdated();
       }
     } catch (error) {
-      console.error('Error al procesar la plantilla:', error);
-      alert(isApproved 
-        ? 'Error al aprobar la plantilla. Inténtalo de nuevo.' 
-        : 'Error al rechazar la plantilla. Inténtalo de nuevo.'
-      );
+      console.error('Error al aprobar la plantilla:', error);
+      alert('Error al aprobar la plantilla. Inténtalo de nuevo.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Función para rechazar una plantilla (llamada desde el modal de revisión)
+  const handleRejectTemplate = async (templateId, rejectionReason) => {
+    setIsLoading(true);
+    try {
+      await rejectTemplate(templateId, rejectionReason);
+      setIsReviewModalOpen(false); // Cerrar el modal de rechazo
+      if (onTemplateUpdated) {
+        onTemplateUpdated();
+      }
+    } catch (error) {
+      console.error('Error al rechazar la plantilla:', error);
+      alert('Error al rechazar la plantilla. Inténtalo de nuevo.');
     } finally {
       setIsLoading(false);
     }
@@ -160,9 +177,11 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${status.color}`}>{status.text}</span>
                     </td>
-                    {statusFilter === 'REJECTED_INTERNAL' && (
+                    {(statusFilter === 'REJECTED_INTERNAL' || statusFilter === 'REJECTED') && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {template.rejection_reason || 'N/A'}
+                        {template.status === 'REJECTED_META' 
+                          ? getTranslatedRejectionReason(template.rejection_reason) 
+                          : (template.rejection_reason || 'N/A')}
                       </td>
                     )}
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -175,9 +194,9 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <TemplateActionMenu
                         template={template}
-                        onDuplicate={() => {}}
                         onPreview={openPreviewModal}
-                        onReview={openReviewModal}
+                        onApprove={handleApproveTemplate}
+                        onReject={openRejectModal} // Abrir el modal de rechazo
                       />
                     </td>
                   </tr>
@@ -219,12 +238,13 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
           </div>
         </div>
       </div>
-      {/* Modal de revisión de plantilla */}
-      {isModalOpen && selectedTemplate && (
+      {/* Modal de rechazo de plantilla (ahora solo para rechazar) */}
+      {isReviewModalOpen && selectedTemplate && (
         <TemplateReviewModal 
           template={selectedTemplate} 
-          onClose={() => setIsModalOpen(false)}
-          onReview={handleTemplateReview}
+          onClose={() => setIsReviewModalOpen(false)}
+          onReview={handleRejectTemplate} // Usar la nueva función de rechazo
+          isApproving={false} // Forzar a que sea solo para rechazar
         />
       )}
       {isPreviewModalOpen && selectedTemplate && (

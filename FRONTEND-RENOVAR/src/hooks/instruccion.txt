@@ -1,0 +1,190 @@
+Guía de integración frontend para notificaciones en tiempo real
+
+1. Conexión al WebSocket
+- Endpoint: ws(s)://<HOST>/api/v1/notifications/ws?token=<JWT>
+• Producción: usa wss://.
+• Token: por query ?token= (algunos proxies quitan Authorization en WS).
+• Ping opcional: envía texto “ping” cada 25–30s. El servidor envía keepalive cada ~25s.
+
+Ejemplo mínimo:
+
+```
+ 1 │ const url = `${BASE_URL.replace('http', 'ws')}/api/v1/notifications/ws?token=${encodeURIComponent(jwt)}`;
+ 2 │ const ws = new WebSocket(url);
+ 3 │ ws.onmessage = (e) => {
+ 4 │   const msg = JSON.parse(e.data);
+ 5 │   // manejar msg.event
+ 6 │ };
+ 7 │ setInterval(() => ws.readyState === 1 && ws.send('ping'), 30000);
+
+```
+
+1. Eventos soportados y payloads
+- snapshot: lista inicial (máx 20).
+
+```
+ 1 │ {"event":"snapshot","payload":[
+ 2 │   {"id":"<uuid>","message":"<str>","type":"<enum>","link_url":"<str|null>","is_read":false,"created_at":"<ISO-8601>"}
+ 3 │ ]}
+
+```
+
+- notification.created: notificación nueva.
+
+{"event":"notification.created","payload":{"id":"<uuid>","message":"<str>","type":"<enum>","link_url":null,"is_read":false,"created_at":"<ISO-8601>"}}
+
+- notification.read: una notificación fue marcada como leída.
+
+{"event":"notification.read","payload":{"id":"<uuid>","is_read":true}}
+
+- unread_count.updated: actualizar badge sin polling.
+
+{"event":"unread_count.updated","payload":{"count": <int>}}
+
+- keepalive: latido servidor→cliente. Ignóralo.
+
+{"event":"keepalive","payload":{}}
+
+Tipos de payload.type (enum): GENERIC_INFO, TEMPLATE_APPROVED, TEMPLATE_REJECTED, CAMPAIGN_SCHEDULED, CAMPAIGN_SENDING, CAMPAIGN_COMPLETED, CAMPAIGN_ERROR.
+
+1. Cliente de referencia (TypeScript)
+    
+    1 │ type NotificationItem = {
+    2 │   id: string;
+    3 │   message: string;
+    4 │   type: string;
+    5 │   link_url: string | null;
+    6 │   is_read: boolean;
+    7 │   created_at: string; // ISO
+    8 │ };
+    9 │
+    10 │ type Events =
+    11 │   | { event: 'snapshot'; payload: NotificationItem[] }
+    12 │   | { event: 'notification.created'; payload: NotificationItem }
+    13 │   | { event: 'notification.read'; payload: { id: string; is_read: true } }
+    14 │   | { event: 'unread_count.updated'; payload: { count: number } }
+    15 │   | { event: 'keepalive'; payload: Record<string, never> };
+    16 │
+    17 │ export class NotificationsSocket {
+    18 │   private ws?: WebSocket;
+    19 │   private pingTimer?: number;
+    20 │   private backoffMs = 1000;
+    21 │   private readonly backoffMax = 30000;
+    22 │   constructor(private getToken: () => Promise<string> | string, private onMessage: (e: Events) => void) {}
+    23 │
+    24 │   async connect(baseUrl: string) {
+    25 │     const token = await this.getToken();
+    26 │     const url = `${baseUrl.replace('http', 'ws')}/api/v1/notifications/ws?token=${encodeURIComponent(token)}`;
+    27 │     [this.ws](http://this.ws/) = new WebSocket(url);
+    28 │     this.ws.onopen = () => {
+    29 │       this.pingTimer = window.setInterval(() => [this.ws?.readyState](http://this.ws/?.readyState) === 1 && this.ws.send('ping'), 30000);
+    30 │       this.backoffMs = 1000;
+    31 │     };
+    32 │     this.ws.onmessage = (ev) => {
+    33 │       try {
+    34 │         const msg = JSON.parse(ev.data) as Events;
+    35 │         this.onMessage(msg);
+    36 │       } catch { /* ignore */ }
+    37 │     };
+    38 │     this.ws.onclose = async (ev) => {
+    39 │       if (this.pingTimer) clearInterval(this.pingTimer);
+    40 │       // 4401 = token inválido/expirado; refrescar antes de reconectar
+    41 │       if (ev.code === 4401) await this.getToken();
+    42 │       await this.reconnect(baseUrl);
+    43 │     };
+    44 │     this.ws.onerror = () => [this.ws?.close()](http://this.ws/?.close());
+    45 │   }
+    46 │
+    47 │   private async reconnect(baseUrl: string) {
+    48 │     await new Promise((r) => setTimeout(r, this.backoffMs));
+    49 │     this.backoffMs = Math.min(this.backoffMs * 2, this.backoffMax);
+    50 │     this.connect(baseUrl);
+    51 │   }
+    52 │
+    53 │   close() {
+    54 │     if (this.pingTimer) clearInterval(this.pingTimer);
+    55 │     [this.ws?.close()](http://this.ws/?.close());
+    56 │   }
+    57 │ }
+    
+2. Manejo de estado UI (lista + badge)
+- Estado sugerido:
+• notificationsById: Map<string, NotificationItem>
+• orderedIds: string[] (desc por created_at)
+• unreadCount: number
+• Al recibir `snapshot`:
+• Insertar todos, ordenar por created_at desc, setear unreadCount con REST o esperar unread_count.updated.
+• Al recibir `notification.created`:
+• Insertar al inicio si no existe; si existe, reemplazar.
+• Incrementar unreadCount localmente o esperar unread_count.updated.
+• Al recibir `notification.read`:
+• Marcar item is_read=true. Decremento local opcional (la fuente de la verdad es unread_count.updated).
+• Al recibir `unread_count.updated`:
+• Sobrescribir el badge con payload.count.
+• Deduplicación: usa id para evitar duplicados entre snapshot y created.
+• Fechas: new Date(item.created_at) para ordenar.
+1. REST disponible y cuándo llamarlo
+- Lista: GET /api/v1/notifications/?skip=0&limit=20 (inicio de app o refresco manual).
+• Badge inicial: GET /api/v1/notifications/unread-count (opcional; luego el socket lo mantiene con unread_count.updated).
+• Marcar una como leída: PATCH /api/v1/notifications/{id}/read
+• Respuesta: notificación actualizada.
+• WS emite: notification.read y unread_count.updated.
+• Marcar todas como leídas: POST /api/v1/notifications/read-all
+• Respuesta: {"count": 0}
+• WS emite: unread_count.updated (no se emiten N eventos notification.read).
+1. Integración rápida en React (ejemplo)
+    
+    1 │ import { useEffect, useRef, useState } from 'react';
+    2 │ // asume NotificationsSocket de arriba
+    3 │ export function useNotifications(baseUrl: string, getToken: () => Promise<string> | string) {
+    4 │   const [items, setItems] = useState<NotificationItem[]>([]);
+    5 │   const [unread, setUnread] = useState<number>(0);
+    6 │   const socketRef = useRef<NotificationsSocket>();
+    7 │
+    8 │   useEffect(() => {
+    9 │     socketRef.current = new NotificationsSocket(getToken, (msg) => {
+    10 │       if (msg.event === 'snapshot') {
+    11 │         const list = msg.payload.slice().sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    12 │         setItems(list);
+    13 │       } else if (msg.event === 'notification.created') {
+    14 │         setItems((prev) => [msg.payload, ...prev.filter(n => [n.id](http://n.id/) !== [msg.payload.id](http://msg.payload.id/))]);
+    15 │       } else if (msg.event === 'notification.read') {
+    16 │         setItems((prev) => prev.map(n => [n.id](http://n.id/) === [msg.payload.id](http://msg.payload.id/) ? { ...n, is_read: true } : n));
+    17 │       } else if (msg.event === 'unread_count.updated') {
+    18 │         setUnread(msg.payload.count);
+    19 │       }
+    20 │     });
+    21 │     socketRef.current.connect(baseUrl);
+    22 │     return () => socketRef.current?.close();
+    23 │   }, [baseUrl, getToken]);
+    24 │
+    25 │   return { items, unread };
+    26 │ }
+    
+2. Estrategia de reconexión y token
+- Backoff exponencial: 1s → 2s → 5s → … máx 30s.
+• Expiración de token:
+• Si el socket cierra con código 4401, refresca el JWT y reconecta.
+• En REST, si recibes 401, refresca y reintenta.
+• Múltiples pestañas: cada pestaña puede abrir su WS; Redis Pub/Sub maneja los eventos por usuario.
+1. Pruebas manuales útiles
+- Abrir WS y ver snapshot/keepalive:
+
+wscat -c "ws://localhost:8000/api/v1/notifications/ws?token=TU_JWT"
+
+- Marcar una como leída:
+
+curl -X PATCH "[http://localhost:8000/api/v1/notifications/{ID}/read](http://localhost:8000/api/v1/notifications/%7BID%7D/read)" -H "Authorization: Bearer TU_JWT"
+
+- Marcar todas como leídas:
+
+curl -X POST "http://localhost:8000/api/v1/notifications/read-all" -H "Authorization: Bearer TU_JWT"
+
+1. Errores comunes y tips
+- No mezclar HTTP y WS: usa wss:// cuando el sitio es https://.
+• Authorization en headers: puede ser removido por proxies en WS; usa ?token=.
+• Duplicados: usa id como llave y ordena por created_at.
+• Zona horaria: created_at viene en ISO con zona; usa Date para formatear en UI.
+
+Estado
+• La API ya emite notification.created, notification.read, unread_count.updated y keepalive. Te dejé un cliente TS y un hook React de ejemplo para integrar en el front.
