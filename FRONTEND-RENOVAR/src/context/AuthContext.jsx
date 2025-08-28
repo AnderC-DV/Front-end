@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { jwtDecode } from "jwt-decode";
 import { checkUserIdentifier, loginWithPassword, firstTimeLogin } from '../services/api';
 
@@ -9,18 +9,24 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.debug('[AuthContext] Attempting to load token from localStorage...');
     const tokenData = localStorage.getItem('authToken');
     if (tokenData) {
       try {
         const parsedToken = JSON.parse(tokenData);
         const decodedToken = jwtDecode(parsedToken.access_token);
         setUser({ ...parsedToken, decoded: decodedToken });
+        console.debug('[AuthContext] Token loaded and user set.');
       } catch (error) {
-        console.error("Error decoding token from localStorage", error);
+        console.error("[AuthContext] Error decoding token from localStorage", error);
         localStorage.removeItem('authToken');
+        setUser(null); // Ensure user is null if token is invalid
       }
+    } else {
+      console.debug('[AuthContext] No token found in localStorage.');
     }
     setLoading(false);
+    console.debug('[AuthContext] Loading finished, setLoading(false).');
   }, []);
 
   const handleLogin = (tokenData) => {
@@ -29,12 +35,14 @@ export const AuthProvider = ({ children }) => {
       const userData = { ...tokenData, decoded: decodedToken };
       localStorage.setItem('authToken', JSON.stringify(userData));
       setUser(userData);
+      console.debug('[AuthContext] User logged in, token set:', tokenData.access_token ? tokenData.access_token.substring(0, 10) + '...' : 'No token');
     } catch (error) {
-      console.error("Error decoding token", error);
+      console.error("[AuthContext] Error decoding token during login:", error);
     }
   };
 
   const logout = () => {
+    console.debug('[AuthContext] User logged out, clearing token.');
     setUser(null);
     localStorage.removeItem('authToken');
   };
@@ -85,7 +93,8 @@ export const AuthProvider = ({ children }) => {
       firstTimeLogin: async (identifier, password) => {
         const tokenData = await firstTimeLogin(identifier, password);
         handleLogin(tokenData);
-      }
+      },
+      getAccessToken: useCallback(() => user?.access_token, [user?.access_token])
     }}>
       {children}
     </AuthContext.Provider>

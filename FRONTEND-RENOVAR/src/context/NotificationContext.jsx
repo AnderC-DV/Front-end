@@ -2,14 +2,14 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, BASE_URL } from '../services/api';
 import { NotificationContext } from './NotificationContextDefinition';
 import { NotificationsSocket } from '../utils/NotificationsSocket';
-import { useAuth } from './AuthContext'; // Assuming useAuth is in AuthContext.jsx
+import { useAuth } from './AuthContext';
 
 const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadingCount, setLoadingCount] = useState(true);
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, isAuthenticated, loading: authLoading } = useAuth(); // Get authLoading
   const socketRef = useRef(/** @type {NotificationsSocket | undefined} */ (undefined));
 
   const handleNewNotification = useCallback((msg) => {
@@ -19,27 +19,32 @@ const NotificationProvider = ({ children }) => {
       setNotifications(list);
       console.debug('[NotificationContext] Snapshot applied. Count:', list.length);
       setLoading(false);
-      setLoadingCount(false); // Snapshot provides initial data, so loading for count is done
+      setLoadingCount(false);
     } else if (msg.event === 'notification.created') {
+      if (!msg.payload || !msg.payload.id) {
+        console.warn('[NotificationContext] Received notification.created event with invalid payload:', msg.payload);
+        return;
+      }
       setNotifications((prev) => {
-        const existingIndex = prev.findIndex(n => n.id === msg.payload.id);
+        // Ensure prev is an array, default to empty array if somehow undefined
+        const currentNotifications = Array.isArray(prev) ? prev : [];
+        const existingIndex = currentNotifications.findIndex(n => n.id === msg.payload.id);
         if (existingIndex > -1) {
-          // Replace existing notification if it's a duplicate (e.g., from snapshot and then created)
-          const newNotifications = [...prev];
+          const newNotifications = [...currentNotifications];
           newNotifications[existingIndex] = msg.payload;
           console.debug('[NotificationContext] Updated duplicate notification (created).');
           return newNotifications;
         }
         console.debug('[NotificationContext] New notification prepended.');
-        return [msg.payload, ...prev];
+        return [msg.payload, ...currentNotifications];
       });
-      setUnreadCount((prev) => prev + 1); // Optimistically increment unread count
+      setUnreadCount((prev) => prev + 1);
     } else if (msg.event === 'notification.read') {
       setNotifications((prev) =>
         prev.map((n) => (n.id === msg.payload.id ? { ...n, is_read: true } : n))
       );
       console.debug('[NotificationContext] Marked as read (WS event):', msg.payload.id);
-      setUnreadCount((prev) => (prev > 0 ? prev - 1 : 0)); // Optimistically decrement unread count
+      setUnreadCount((prev) => (prev > 0 ? prev - 1 : 0));
     } else if (msg.event === 'unread_count.updated') {
       setUnreadCount(msg.payload.count);
       console.debug('[NotificationContext] Unread count updated:', msg.payload.count);
@@ -51,8 +56,13 @@ const NotificationProvider = ({ children }) => {
     setLoading(true);
     try {
       const response = await getNotifications();
-      console.debug('[NotificationContext] REST fetch notifications count:', response.data?.length);
-      setNotifications(response.data);
+      const list = Array.isArray(response) ? response : (Array.isArray(response?.data) ? response.data : []);
+      console.debug('[NotificationContext] REST fetch shape:', {
+        topLevelArray: Array.isArray(response),
+        hasDataArray: Array.isArray(response?.data),
+        finalCount: list.length,
+      });
+      setNotifications(list);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
@@ -64,7 +74,6 @@ const NotificationProvider = ({ children }) => {
     try {
       console.debug('[NotificationContext] markAsRead called:', notificationId);
       await markNotificationAsRead(notificationId);
-      // State will be updated by WebSocket 'notification.read' event
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
@@ -74,34 +83,60 @@ const NotificationProvider = ({ children }) => {
     try {
       console.debug('[NotificationContext] markAllAsRead called');
       await markAllNotificationsAsRead();
-      // State will be updated by WebSocket 'unread_count.updated' event
+      // After marking all as read, refetch notifications to ensure UI is updated
+      // This is a fallback in case WebSocket event for 'read-all' is not immediately propagated or handled.
+      fetchNotifications();
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
     }
-  }, []);
+  }, [fetchNotifications]);
 
   useEffect(() => {
+    console.debug('[NotificationContext] useEffect triggered.');
+    console.debug('[NotificationContext] Dependencies: isAuthenticated:', isAuthenticated, 'authLoading:', authLoading);
+    // Log previous values of dependencies to identify which one changed
+    // This requires a ref to store previous values, but for now, just logging current state.
+
+    // Wait for AuthContext to finish loading before proceeding
+    if (authLoading) {
+      console.debug('[NotificationContext] AuthContext is still loading, deferring socket connection and notification fetch.');
+      return;
+    }
+
+    const currentToken = getAccessToken();
+    console.debug('[NotificationContext] Current token from getAccessToken (useEffect):', currentToken ? currentToken.substring(0, 10) + '...' : 'Not Available');
+
+    if (!isAuthenticated || !currentToken) {
+      console.debug('[NotificationContext] User not authenticated or token not available, skipping socket connection and notification fetch.');
+      socketRef.current?.close();
+      setNotifications([]);
+      setUnreadCount(0);
+      setLoading(false);
+      setLoadingCount(false);
+      return;
+    }
+
     const getToken = async () => {
-      const token = await getAccessToken();
+      const token = getAccessToken();
+      console.debug('[NotificationContext] getToken callback executed. Token:', token ? token.substring(0, 10) + '...' : 'Not Available');
       if (!token) {
-        console.warn("No access token available for WebSocket connection.");
+        console.warn("[NotificationContext] No access token available for WebSocket connection (inside getToken callback).");
         return "";
       }
       return token;
     };
 
-  console.debug('[NotificationContext] Initializing socket...');
-  socketRef.current = new NotificationsSocket(getToken, handleNewNotification);
-  socketRef.current.connect(BASE_URL);
-
-    // Initial fetch of notifications in case WebSocket snapshot is delayed or fails
+    console.debug('[NotificationContext] Initializing socket with available token...');
+    socketRef.current = new NotificationsSocket(getToken, handleNewNotification);
+    socketRef.current.connect(BASE_URL);
     fetchNotifications();
 
     return () => {
-  console.debug('[NotificationContext] Cleaning up socket...');
-  socketRef.current?.close();
+      clearTimeout(connectTimeout); // Clear timeout if component unmounts before connection
+      console.debug('[NotificationContext] Cleaning up socket...');
+      socketRef.current?.close();
     };
-  }, [getAccessToken, handleNewNotification, fetchNotifications]);
+  }, [getAccessToken, handleNewNotification, fetchNotifications, isAuthenticated, authLoading]);
 
   return (
     <NotificationContext.Provider value={{ notifications, unreadCount, loading, loadingCount, fetchNotifications, markAsRead, markAllAsRead }}>

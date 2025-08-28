@@ -11,6 +11,10 @@ const getAuthToken = () => {
 };
 
 const apiRequest = async (endpoint, method = 'GET', body = null) => {
+  const traceId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const start = performance.now();
+  const isNotif = endpoint.startsWith('/notifications');
+  if (isNotif) console.debug('[API][Notifications][REQUEST]', { traceId, endpoint, method, body });
   const token = getAuthToken();
   const headers = {
     'Content-Type': 'application/json',
@@ -30,16 +34,29 @@ const apiRequest = async (endpoint, method = 'GET', body = null) => {
   }
 
   try {
-    const response = await fetch(`${BASE_URL}${endpoint}`, config);
+  const response = await fetch(`${BASE_URL}${endpoint}`, config);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Error en la petición a ${endpoint}`);
+      const errMsg = errorData.detail || `Error en la petición a ${endpoint}`;
+      if (isNotif) {
+        console.error('[API][Notifications][HTTP_ERROR]', { traceId, endpoint, status: response.status, errMsg });
+      }
+      throw new Error(errMsg);
     }
-
-    return response.json();
+    const json = await response.json();
+    if (isNotif) {
+      const dur = (performance.now() - start).toFixed(1);
+      console.debug('[API][Notifications][RESPONSE]', { traceId, endpoint, durationMs: dur, size: (Array.isArray(json) ? json.length : (json?.data?.length ?? 'n/a')) });
+    }
+    return json;
   } catch (error) {
-    console.error(`API request failed: ${error.message}`);
+    if (isNotif) {
+      const dur = (performance.now() - start).toFixed(1);
+      console.error('[API][Notifications][ERROR]', { traceId, endpoint, method, durationMs: dur, message: error.message });
+    } else {
+      console.error(`API request failed: ${error.message}`);
+    }
     throw error;
   }
 };

@@ -23,6 +23,7 @@ const formatRelativeTime = (dateStr) => {
 
 const NotificationPanel = ({ onClose }) => {
   const { notifications, loading, markAsRead, markAllAsRead } = useNotifications();
+  console.debug('[NotificationPanel] Render. loading=', loading, 'notifications.len=', notifications?.length);
 
   const unreadCount = useMemo(() => (notifications || []).filter(n => !n.is_read).length, [notifications]);
 
@@ -63,7 +64,7 @@ const NotificationPanel = ({ onClose }) => {
           <div className="flex items-center gap-3">
             {unreadCount > 0 && (
               <button
-                onClick={markAllAsRead}
+                onClick={() => { console.debug('[NotificationPanel] markAllAsRead clicked'); markAllAsRead(); }}
                 className="text-xs font-medium hover:underline focus:outline-none"
               >Marcar todo</button>
             )}
@@ -96,7 +97,7 @@ const NotificationPanel = ({ onClose }) => {
             return (
               <button
                 key={n.id}
-                onClick={() => isUnread && markAsRead(n.id)}
+                onClick={() => { if (isUnread) { console.debug('[NotificationPanel] markAsRead clicked id=', n.id); markAsRead(n.id); } else { console.debug('[NotificationPanel] click ignored (already read) id=', n.id); } }}
                 className={`w-full text-left group px-5 py-3 flex gap-4 relative transition-colors duration-150 focus:outline-none ${isUnread ? 'bg-blue-50/60 hover:bg-blue-100/70' : 'hover:bg-gray-50'}`}
               >
                 <div className="relative mt-0.5">
