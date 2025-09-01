@@ -152,11 +152,11 @@ const CreateCampaignPage = () => {
       if (campaignData.schedule_type === 'recurrent') {
         const schedulePayload = new CampaignScheduleCreate({
           name: campaignData.name,
-            channel_type: campaignData.channel,
+            channel_type: campaignData.channel.toUpperCase(), // Convert to uppercase
             message_template_id: campaignData.message_template_id,
             audience_filter_id: filterIdToUse,
             target_role: campaignData.target_role,
-            codebtor_strategy: campaignData.target_role === 'CODEUDOR' ? campaignData.codebtor_strategy : null,
+            codebtor_strategy: (campaignData.target_role === 'CODEUDOR' || campaignData.target_role === 'AMBAS') ? campaignData.codebtor_strategy : null,
             ...campaignData.schedule_details
         });
         console.log('Creando schedule recurrente:', schedulePayload);
@@ -165,11 +165,11 @@ const CreateCampaignPage = () => {
       } else {
         const campaignPayload = new CampaignCreate({
           name: campaignData.name,
-          channel_type: campaignData.channel,
+          channel_type: campaignData.channel.toUpperCase(), // Convert to uppercase
           message_template_id: campaignData.message_template_id,
           audience_filter_id: filterIdToUse,
           target_role: campaignData.target_role,
-          codebtor_strategy: campaignData.target_role === 'CODEUDOR' ? campaignData.codebtor_strategy : null,
+          codebtor_strategy: (campaignData.target_role === 'CODEUDOR' || campaignData.target_role === 'AMBAS') ? campaignData.codebtor_strategy : null,
           scheduled_at: campaignData.scheduled_at || null,
         });
         console.log('Enviando campaña única:', campaignPayload);

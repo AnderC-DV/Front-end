@@ -45,7 +45,7 @@ class CampaignScheduleCreate {
     if (!audience_filter_id) {
       throw new Error("Audience filter ID is required.");
     }
-    if (!['DEUDOR', 'CODEUDOR'].includes(target_role)) {
+    if (!['DEUDOR', 'CODEUDOR', 'AMBAS'].includes(target_role)) {
       throw new Error("Invalid target role.");
     }
 
@@ -60,8 +60,15 @@ class CampaignScheduleCreate {
     if (description) this.description = description;
     if (start_date) this.start_date = start_date;
     if (end_date) this.end_date = end_date;
-    if (target_role === 'CODEUDOR' && codebtor_strategy) {
+    
+    // codebtor_strategy is required if target_role is CODEUDOR or AMBAS
+    if (target_role === 'CODEUDOR' || target_role === 'AMBAS') {
+      if (!codebtor_strategy) {
+        throw new Error("Co-debtor strategy is required if target role is CODEUDOR or AMBAS.");
+      }
       this.codebtor_strategy = codebtor_strategy;
+    } else {
+      this.codebtor_strategy = null; // Ensure it's null if not applicable
     }
   }
 }

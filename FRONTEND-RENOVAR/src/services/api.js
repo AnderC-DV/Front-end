@@ -34,15 +34,27 @@ const apiRequest = async (endpoint, method = 'GET', body = null) => {
   }
 
   try {
-  const response = await fetch(`${BASE_URL}${endpoint}`, config);
+    const response = await fetch(`${BASE_URL}${endpoint}`, config);
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errMsg = errorData.detail || `Error en la petición a ${endpoint}`;
-      if (isNotif) {
-        console.error('[API][Notifications][HTTP_ERROR]', { traceId, endpoint, status: response.status, errMsg });
+      const errorData = await response.json().catch(() => ({ message: `Error en la petición a ${endpoint}` }));
+      let errorMessage = `Error en la petición a ${endpoint}`;
+
+      if (response.status === 422 && errorData.detail) {
+        // FastAPI validation errors often come as an array of objects
+        errorMessage = errorData.detail.map(err => `${err.loc.join('.')} -> ${err.msg}`).join('; ');
+      } else if (errorData.detail && typeof errorData.detail === 'string') {
+        errorMessage = errorData.detail;
+      } else if (errorData.message) {
+        errorMessage = errorData.message;
+      } else {
+        errorMessage = `Error ${response.status}: ${response.statusText}`;
       }
-      throw new Error(errMsg);
+
+      if (isNotif) {
+        console.error('[API][Notifications][HTTP_ERROR]', { traceId, endpoint, status: response.status, errorMessage, errorData });
+      }
+      throw new Error(errorMessage);
     }
     const json = await response.json();
     if (isNotif) {
