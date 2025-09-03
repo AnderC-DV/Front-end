@@ -36,6 +36,11 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
           text: 'Pendiente Aprobación', 
           color: 'bg-yellow-100 text-yellow-700'
         };
+      case 'PENDING_OPERATIONS_APPROVAL':
+        return {
+          text: 'Pendiente Operaciones',
+          color: 'bg-yellow-100 text-yellow-700'
+        };
       case 'APPROVED':
         return { 
           text: 'Aprobada', 
@@ -44,6 +49,11 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
       case 'REJECTED_INTERNAL':
         return { 
           text: 'Rechazada', 
+          color: 'bg-red-100 text-red-700'
+        };
+      case 'REJECTED_OPERATIONS':
+        return {
+          text: 'Rechazada por Operaciones',
           color: 'bg-red-100 text-red-700'
         };
       case 'DRAFT':

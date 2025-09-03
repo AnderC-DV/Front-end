@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { getSimpleFilters } from '../../services/api';
+import { getSimpleFilters, BASE_URL } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import EmailPreview from './EmailPreview';
 import SimpleFilterRulesPreview from './SimpleFilterRulesPreview';
+import { toast } from 'sonner';
 import { 
   DetailItem, 
   WhatsAppIcon, 
@@ -12,12 +14,15 @@ import {
 const Step5_Confirmation = ({ campaignData }) => {
   const [audienceName, setAudienceName] = useState('Cargando...');
   const [audienceDefinition, setAudienceDefinition] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   // Los datos de la plantilla y el conteo ahora vienen directamente de campaignData
   const { templateName, previewContent, previewSubject, client_count = 0 } = campaignData;
+  const { getAccessToken } = useAuth();
+  const token = getAccessToken();
 
   useEffect(() => {
     if (campaignData.audience_filter_id) {
-      getSimpleFilters().then(filters => {
+      getSimpleFilters(token).then(filters => {
         const found = filters.find(f => f.id === campaignData.audience_filter_id);
         if (found) {
           setAudienceName(found.name);
@@ -34,7 +39,7 @@ const Step5_Confirmation = ({ campaignData }) => {
       setAudienceDefinition(campaignData.definition || null);
     }
 
-  }, [campaignData.audience_filter_id, campaignData.definition]);
+  }, [campaignData.audience_filter_id, campaignData.definition, token]);
 
   const getChannelIcon = () => {
     const iconProps = { className: "h-6 w-6 mr-2" };
@@ -43,6 +48,54 @@ const Step5_Confirmation = ({ campaignData }) => {
       case 'SMS': return <SmsIcon {...iconProps} />;
       case 'EMAIL': return <EMAILIcon {...iconProps} />;
       default: return null;
+    }
+  };
+
+  const handleDownloadCSV = async () => {
+    setIsDownloading(true);
+    toast.info("Descargando el archivo CSV...");
+
+    try {
+      const campaignPayload = {
+        name: campaignData.name,
+        channel_type: campaignData.channel?.toUpperCase(),
+        message_template_id: campaignData.message_template_id,
+        audience_filter_id: campaignData.audience_filter_id,
+        target_role: campaignData.target_role,
+        codebtor_strategy: (campaignData.target_role === 'CODEUDOR' || campaignData.target_role === 'AMBAS') ? campaignData.codebtor_strategy : null,
+        scheduled_at: campaignData.scheduled_at || null,
+        // source_schedule_id no es necesario para el preview de una campaña única
+      };
+
+      const response = await fetch(`${BASE_URL}/campaigns/preview/csv`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(campaignPayload),
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'segmentacion_preview.csv';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        toast.success("Archivo CSV descargado con éxito.");
+      } else {
+        console.error('Error al descargar el CSV:', response.statusText);
+        toast.error("Error al descargar el CSV de la vista previa.");
+      }
+    } catch (error) {
+      console.error('Error en la solicitud de descarga de CSV:', error);
+      toast.error("Error en la solicitud de descarga de CSV.");
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -94,6 +147,16 @@ const Step5_Confirmation = ({ campaignData }) => {
           </DetailItem>
         )}
         <DetailItem label="Clientes Alcanzados">{client_count.toLocaleString()}</DetailItem>
+      </div>
+
+      <div className="mt-8 flex justify-end">
+        <button
+          onClick={handleDownloadCSV}
+          disabled={isDownloading}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          {isDownloading ? "Descargando..." : "Descargar Vista Previa CSV"}
+        </button>
       </div>
 
       {campaignData.channel === 'EMAIL' ? (

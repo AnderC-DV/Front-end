@@ -6,8 +6,9 @@ import NotificationProvider from "./context/NotificationContext"; // Import Noti
 function App() {
   return (
     <NotificationProvider> {/* Wrap AppRouter with NotificationProvider */}
-      <AppRouter />
-      <Toaster richColors position="top-right" />
+  <AppRouter />
+  {/* Toaster único en bottom-right (se eliminó el de MainLayout para evitar duplicados) */}
+  <Toaster richColors position="bottom-right" />
     </NotificationProvider>
   );
 }

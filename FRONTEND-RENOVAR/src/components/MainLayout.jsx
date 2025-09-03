@@ -12,7 +12,7 @@ const MainLayout = ({ user }) => {
       <main className="flex-grow overflow-y-auto">
         <Outlet context={{ user }} />
       </main>
-      <ChangePasswordPanel isOpen={isPasswordPanelOpen} onClose={() => setIsPasswordPanelOpen(false)} />
+  <ChangePasswordPanel isOpen={isPasswordPanelOpen} onClose={() => setIsPasswordPanelOpen(false)} />
     </div>
   );
 };

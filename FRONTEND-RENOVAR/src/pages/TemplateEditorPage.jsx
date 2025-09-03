@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { getTemplateById, getTemplateVariables, createTemplate, getTemplates } from '../services/api';
 import TemplateCreateSMS from '../schemas/TemplateCreateSMS';
 import TemplateCreateEmail from '../schemas/TemplateCreateEmail';
@@ -12,6 +13,7 @@ import PolicyEditor from '../components/PolicyEditor';
 const TemplateEditorPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [template, setTemplate] = useState({
     name: '',
     channel_type: 'SMS',
@@ -104,8 +106,21 @@ const TemplateEditorPage = () => {
         default:
           throw new Error('Invalid channel type');
       }
-      await createTemplate(templateData);
-      setShowSuccessPopup(true);
+      const newTemplate = await createTemplate(templateData);
+      const userRoles = user?.decoded?.roles || [];
+
+      if (newTemplate.status === 'PENDING_INTERNAL_APPROVAL' && userRoles.includes('Directora de Operaciones')) {
+        alert('Plantilla creada. Pendiente de revisión jurídica.');
+      } else if (newTemplate.status === 'PENDING_OPERATIONS_APPROVAL') {
+        alert('Plantilla creada. Pendiente de revisión de Operaciones.');
+      } else {
+        setShowSuccessPopup(true);
+      }
+      
+      if (!showSuccessPopup) {
+        navigate('/templates');
+      }
+
     } catch (error) {
       alert(`Error al guardar la plantilla: ${error.message}`);
     }

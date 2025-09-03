@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useAuth } from '../context/AuthContext';
 import PropTypes from 'prop-types';
 
 // --- Iconos para el menú ---
@@ -11,7 +11,8 @@ const RejectIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 
 // -------------------------
 
 const TemplateActionMenu = ({ template, onPreview, onApprove, onReject }) => {
-  const navigate = useNavigate();
+  const { user } = useAuth();
+  const userRoles = user?.decoded?.roles || [];
 
   const handlePreviewClick = () => {
     if (typeof onPreview === 'function') {
@@ -31,7 +32,15 @@ const TemplateActionMenu = ({ template, onPreview, onApprove, onReject }) => {
     }
   };
 
-  const isPendingInternalApproval = template.status === 'PENDING_INTERNAL_APPROVAL';
+  const canApproveOrReject = () => {
+    if (template.status === 'PENDING_OPERATIONS_APPROVAL') {
+      return userRoles.includes('Directora de Operaciones') || userRoles.includes('Admin');
+    }
+    if (template.status === 'PENDING_INTERNAL_APPROVAL') {
+      return userRoles.includes('Jurídico') || userRoles.includes('Admin');
+    }
+    return false;
+  };
 
   return (
     <div className="flex items-center space-x-2">
@@ -45,7 +54,7 @@ const TemplateActionMenu = ({ template, onPreview, onApprove, onReject }) => {
       </button>
 
       {/* Botones de Aprobar/Rechazar (condicionales) */}
-      {isPendingInternalApproval && (
+      {canApproveOrReject() && (
         <>
           <button
             onClick={handleApproveClick}

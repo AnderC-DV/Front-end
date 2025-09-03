@@ -12,7 +12,15 @@ const PolicyEditor = ({ onInsert }) => {
   const [selectedTerm, setSelectedTerm] = useState(policyTerms[0]);
 
   const handleInsertPolicy = () => {
-    onInsert(`{politica_plazo:"${selectedTerm}"}`);
+    let termValue;
+    if (selectedTerm === 'Contado') {
+      termValue = '1';
+    } else if (selectedTerm === '>36 meses') {
+      termValue = '37';
+    } else {
+      termValue = selectedTerm.split(' ')[0];
+    }
+    onInsert(`{{POLITICA:${termValue}}}`);
   };
 
   return (

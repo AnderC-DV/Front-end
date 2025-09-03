@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { getTemplates, createTemplate } from '../services/api';
+import { getTemplates, createTemplate, getPendingTemplates } from '../services/api';
 import TemplateList from '../components/TemplateList'; // Importar TemplateList
 import TemplateActionMenu from '../components/TemplateActionMenu';
 import TemplatePreviewModal from '../components/TemplatePreviewModal';
@@ -14,8 +14,10 @@ const StatusBadge = ({ status }) => {
   const statusInfo = {
     APPROVED: { text: 'Aprobada', style: 'bg-green-100 text-green-700' },
     PENDING_INTERNAL_APPROVAL: { text: 'Pendiente Aprobación', style: 'bg-yellow-100 text-yellow-700' },
+    PENDING_OPERATIONS_APPROVAL: { text: 'Pendiente Operaciones', style: 'bg-yellow-100 text-yellow-700' },
     PENDING_META_APPROVAL: { text: 'Pendiente Meta', style: 'bg-orange-100 text-orange-700' },
     REJECTED_INTERNAL: { text: 'Rechazada', style: 'bg-red-100 text-red-700' },
+    REJECTED_OPERATIONS: { text: 'Rechazada por Operaciones', style: 'bg-red-100 text-red-700' },
     REJECTED_META: { text: 'Rechazada Meta', style: 'bg-red-200 text-red-800' },
     REJECTED: { text: 'Rechazada', style: 'bg-red-100 text-red-700' },
     DRAFT: { text: 'Borrador', style: 'bg-blue-100 text-blue-700' },
@@ -86,18 +88,23 @@ const TemplateManagerPage = () => {
   const fetchTemplates = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getTemplates();
+      let data;
+      if (activeStatus === 'PENDING') {
+        data = await getPendingTemplates();
+      } else {
+        data = await getTemplates();
+      }
       setTemplates(data);
     } catch (error) {
       console.error("Error al cargar plantillas:", error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeStatus]);
 
   useEffect(() => {
     fetchTemplates();
-  }, [fetchTemplates]);
+  }, [fetchTemplates, activeStatus]);
 
   useEffect(() => {
     // Filtramos primero por canal

@@ -3,6 +3,8 @@ import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, B
 import { NotificationContext } from './NotificationContextDefinition';
 import { NotificationsSocket } from '../utils/NotificationsSocket';
 import { useAuth } from './AuthContext';
+import { toast } from 'sonner';
+import NotificationToast from '../components/NotificationToast';
 
 const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
@@ -17,7 +19,9 @@ const NotificationProvider = ({ children }) => {
     if (msg.event === 'snapshot') {
       const list = msg.payload.slice().sort((a, b) => (new Date(a.created_at) < new Date(b.created_at) ? 1 : -1));
       setNotifications(list);
-      console.debug('[NotificationContext] Snapshot applied. Count:', list.length);
+    const unread = list.reduce((acc, n) => acc + (n && n.is_read ? 0 : 1), 0);
+    setUnreadCount(unread);
+    console.debug('[NotificationContext] Snapshot applied. Count:', list.length, 'Unread:', unread);
       setLoading(false);
       setLoadingCount(false);
     } else if (msg.event === 'notification.created') {
@@ -39,6 +43,10 @@ const NotificationProvider = ({ children }) => {
         return [msg.payload, ...currentNotifications];
       });
       setUnreadCount((prev) => prev + 1);
+      toast(<NotificationToast notification={msg.payload} />, {
+        id: msg.payload.id,
+        duration: 5000,
+      });
     } else if (msg.event === 'notification.read') {
       setNotifications((prev) =>
         prev.map((n) => (n.id === msg.payload.id ? { ...n, is_read: true } : n))
@@ -62,7 +70,10 @@ const NotificationProvider = ({ children }) => {
         hasDataArray: Array.isArray(response?.data),
         finalCount: list.length,
       });
-      setNotifications(list);
+    setNotifications(list);
+    const unread = list.reduce((acc, n) => acc + (n && n.is_read ? 0 : 1), 0);
+    setUnreadCount(unread);
+    console.debug('[NotificationContext] REST fetch applied. Unread derived:', unread);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
