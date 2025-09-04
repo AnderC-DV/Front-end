@@ -137,7 +137,7 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
       }
     } catch (error) {
       console.error('Error al rechazar la plantilla:', error);
-      alert('Error al rechazar la plantilla. Inténtalo de nuevo.');
+      alert(`Error al rechazar la plantilla: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -159,7 +159,7 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
             <tr>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre de Plantilla</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-              {statusFilter === 'REJECTED_INTERNAL' && (
+              {statusFilter?.includes('REJECTED') && (
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Razón Rechazo</th>
               )}
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Creado Por</th>
@@ -187,7 +187,7 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${status.color}`}>{status.text}</span>
                     </td>
-                    {(statusFilter === 'REJECTED_INTERNAL' || statusFilter === 'REJECTED') && (
+                    {statusFilter?.includes('REJECTED') && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {template.status === 'REJECTED_META' 
                           ? getTranslatedRejectionReason(template.rejection_reason) 
@@ -214,7 +214,7 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
               })
             ) : (
               <tr>
-                <td colSpan={statusFilter === 'REJECTED_INTERNAL' ? 6 : 5} className="px-6 py-10 text-center">
+                <td colSpan={statusFilter?.includes('REJECTED') ? 6 : 5} className="px-6 py-10 text-center">
                   <div className="flex flex-col items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 16h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -253,8 +253,13 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
         <TemplateReviewModal 
           template={selectedTemplate} 
           onClose={() => setIsReviewModalOpen(false)}
-          onReview={handleRejectTemplate} // Usar la nueva función de rechazo
-          isApproving={false} // Forzar a que sea solo para rechazar
+          onReview={(templateId, approve, rejectionReason) => {
+            if (approve) {
+              handleApproveTemplate(templateId);
+            } else {
+              handleRejectTemplate(templateId, rejectionReason);
+            }
+          }}
         />
       )}
       {isPreviewModalOpen && selectedTemplate && (

@@ -6,13 +6,15 @@ const TemplateReviewModal = ({ template, onClose, onReview }) => {
   const [isApproving, setIsApproving] = useState(true);
 
   const handleReview = () => {
-    if (!isApproving) {
+    if (isApproving) {
+      onReview(template.id, true);
+    } else {
       if (!rejectionReason || rejectionReason.trim().length < 10) {
         alert('Por favor, proporciona una razón para el rechazo con al menos 10 caracteres.');
         return;
       }
+      onReview(template.id, false, rejectionReason);
     }
-    onReview(template.id, isApproving, rejectionReason);
   };
 
   const isRejected = template.status === 'REJECTED_INTERNAL' || template.status === 'REJECTED';

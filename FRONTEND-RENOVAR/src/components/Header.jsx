@@ -53,19 +53,21 @@ const Header = ({ onOpenChangePassword }) => {
   const activeLinkClasses = "text-blue-600 font-semibold";
 
   const allNavLinks = [
-    { to: "/", text: "Dashboard", icon: <DashboardIcon />, roles: ["Admin", "Super Administrador", "Coordinador", "Gestor", "Jurídico"] },
+    { to: "/", text: "Dashboard", icon: <DashboardIcon />, roles: ["Admin", "Super Administrador", "Coordinador", "Gestor", "Jurídico", "Directora de Operaciones"] },
     { to: "/clients", text: "Clientes", icon: <ClientsIcon />, roles: ["Admin", "Super Administrador", "Coordinador", "Gestor"] },
     { to: "/campaigns", text: "Campañas", icon: <CampaignsIcon />, roles: ["Admin", "Super Administrador", "Coordinador"] },
     {
-      to: user && (user.decoded.roles.includes("Admin") || user.decoded.roles.includes("Super Administrador") || user.decoded.roles.includes("Jurídico")) ? "/templates/approval" : "/templates",
+      to: user && (user.decoded.roles.includes("Admin") || user.decoded.roles.includes("Super Administrador") || user.decoded.roles.includes("Jurídico") || user.decoded.roles.includes("Directora de Operaciones")) ? "/templates/approval" : "/templates",
       text: "Plantillas",
       icon: <TemplatesIcon />,
-      roles: ["Admin", "Super Administrador", "Coordinador", "Jurídico"]
+      roles: ["Admin", "Super Administrador", "Coordinador", "Jurídico", "Directora de Operaciones"]
     },
     { to: "/reports", text: "Reportes", icon: <ReportsIcon />, roles: ["Admin", "Super Administrador", "Coordinador"] },
   ];
 
-  const accessibleNavLinks = user && user.decoded && user.decoded.roles ? allNavLinks.filter(link => link.roles.includes(user.decoded.roles[0])) : [];
+  const accessibleNavLinks = user?.decoded?.roles
+    ? allNavLinks.filter(link => user.decoded.roles.some(userRole => link.roles.includes(userRole)))
+    : [];
 
   return (
     <header className="bg-white shadow-md p-3 flex justify-between items-center sticky top-0 z-50 bg-opacity-95 backdrop-blur-sm border-b border-gray-100">

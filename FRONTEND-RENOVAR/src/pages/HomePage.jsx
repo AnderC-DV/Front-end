@@ -29,7 +29,7 @@ const HomePage = () => {
   const allQuickAccessItems = [
     { title: "Gestionar Clientes", description: "Administra y consulta información de clientes", icon: <ManageClientsIcon />, path: "/clients", roles: ["Admin", "Coordinador", "Gestor"] },
     { title: "Campañas Masivas", description: "Crea y gestiona campañas de comunicación", icon: <BulkCampaignIcon />, path: "/campaigns", roles: ["Admin", "Coordinador"] },
-    { title: "Aprobación de Plantillas", description: "Revisa y aprueba plantillas de mensajes", icon: <TemplateApprovalIcon />, path: "/templates/approval", roles: ["Admin", "Jurídico"] },
+    { title: "Aprobación de Plantillas", description: "Revisa y aprueba plantillas de mensajes", icon: <TemplateApprovalIcon />, path: "/templates/approval", roles: ["Admin", "Jurídico", "Directora de Operaciones"] },
     { title: "Workflow Builder", description: "Automatiza flujos de comunicación inteligentes", icon: <WorkflowIcon />, path: "/workflows", roles: ["Admin"] },
     { title: "Gestión de Usuarios", description: "Administra usuarios del sistema", icon: <UserManagementIcon />, path: "/users", roles: ["Admin"] },
     { title: "Reportes y Analítica", description: "Visualiza métricas y genera reportes", icon: <ReportsIcon />, path: "/reports", roles: ["Admin", "Coordinador"] },
@@ -38,21 +38,17 @@ const HomePage = () => {
 
   console.log('Todos los accesos rápidos:', allQuickAccessItems);
   
-  // Filtramos los accesos rápidos basados en el rol del usuario
-  // Si el usuario no existe o no tiene rol, no se muestra nada.
-  const accessibleItems = user && user.decoded && user.decoded.roles ? allQuickAccessItems.filter(item => {
-    const userRole = user.decoded.roles[0];
-    // Si el usuario tiene rol Admin, dar acceso a todo
-    if (userRole === "Super Administrador") {
-      console.log(`Acceso "${item.title}": SÍ (Usuario es Super Administrador)`);
-      return true;
-    }
-    
-    // Verificar si el rol del usuario está en la lista de roles permitidos para este item
-    const hasAccess = item.roles.includes(userRole);
-    console.log(`Acceso "${item.title}": ${hasAccess ? 'SÍ' : 'NO'} (Rol: ${userRole})`);
-    return hasAccess;
-  }) : [];
+  // Filtramos los accesos rápidos basados en los roles del usuario
+  const accessibleItems = user?.decoded?.roles
+    ? allQuickAccessItems.filter(item => {
+        // Otorga acceso si el usuario es Super Administrador
+        if (user.decoded.roles.includes("Super Administrador")) {
+          return true;
+        }
+        // Otorga acceso si alguno de los roles del usuario coincide
+        return user.decoded.roles.some(userRole => item.roles.includes(userRole));
+      })
+    : [];
   
   console.log('Accesos filtrados:', accessibleItems);
 

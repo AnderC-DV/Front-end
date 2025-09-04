@@ -131,8 +131,12 @@ export const markAllNotificationsAsRead = () => apiRequest('/notifications/read-
 
 export const getTemplatePreview = (templateId) => apiRequest(`/templates/${templateId}/preview`);
 export const getTemplateById = (templateId) => apiRequest(`/templates/${templateId}`);
+import TemplateReviewRequest from '../schemas/TemplateReviewRequest';
 export const getTemplateVariables = () => apiRequest('/templates/variables');
 export const getPendingTemplates = () => apiRequest('/templates/pending-review');
 export const approveTemplate = (templateId) => apiRequest(`/templates/${templateId}/internal-approve`, 'POST', {});
-export const rejectTemplate = (templateId, rejection_reason) => apiRequest(`/templates/${templateId}/internal-reject`, 'POST', { approve: false, rejection_reason });
+export const rejectTemplate = (templateId, rejection_reason) => {
+  const body = new TemplateReviewRequest(false, rejection_reason);
+  return apiRequest(`/templates/${templateId}/internal-reject`, 'POST', body);
+};
 export const reviewTemplate = (templateId, reviewData) => apiRequest(`/templates/${templateId}/review`, 'POST', reviewData);
