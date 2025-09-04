@@ -26,6 +26,7 @@ const Header = ({ onOpenChangePassword }) => {
   const handleLogout = () => {
     logout();
     navigate('/login');
+    window.location.reload();
   };
 
   useEffect(() => {
@@ -57,7 +58,7 @@ const Header = ({ onOpenChangePassword }) => {
     { to: "/clients", text: "Clientes", icon: <ClientsIcon />, roles: ["Admin", "Super Administrador", "Coordinador", "Gestor"] },
     { to: "/campaigns", text: "Campañas", icon: <CampaignsIcon />, roles: ["Admin", "Super Administrador", "Coordinador"] },
     {
-      to: user && (user.decoded.roles.includes("Admin") || user.decoded.roles.includes("Super Administrador") || user.decoded.roles.includes("Jurídico") || user.decoded.roles.includes("Directora de Operaciones")) ? "/templates/approval" : "/templates",
+      to: user?.decoded?.roles?.some(r => ["Admin", "Super Administrador", "Jurídico", "Directora de Operaciones"].includes(r)) ? "/templates/approval" : "/templates",
       text: "Plantillas",
       icon: <TemplatesIcon />,
       roles: ["Admin", "Super Administrador", "Coordinador", "Jurídico", "Directora de Operaciones"]
