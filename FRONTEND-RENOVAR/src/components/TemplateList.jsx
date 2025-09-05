@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import TemplatePreviewModal from './TemplatePreviewModal';
 import TemplateActionMenu from './TemplateActionMenu';
-import TemplateReviewModal from './TemplateReviewModal'; // Mantener para el modal de rechazo
-import { approveTemplate, rejectTemplate } from '../services/api';
+// Quitamos la aprobación/rechazo en esta vista: solo previsualización
+// import TemplateReviewModal from './TemplateReviewModal';
+// import { approveTemplate, rejectTemplate } from '../services/api';
 
 const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false); // Cambiado de isModalOpen a isReviewModalOpen
+  // const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -104,44 +105,11 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
     setIsPreviewModalOpen(true);
   };
 
-  // Función para abrir el modal de revisión (solo para rechazo ahora)
-  const openRejectModal = (template) => {
-    setSelectedTemplate(template);
-    setIsReviewModalOpen(true);
-  };
+  // Se deshabilita rechazo/aprobación en esta vista
 
-  // Función para aprobar una plantilla directamente
-  const handleApproveTemplate = async (templateId) => {
-    setIsLoading(true);
-    try {
-      await approveTemplate(templateId);
-      if (onTemplateUpdated) {
-        onTemplateUpdated();
-      }
-    } catch (error) {
-      console.error('Error al aprobar la plantilla:', error);
-      alert('Error al aprobar la plantilla. Inténtalo de nuevo.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Aprobación deshabilitada en esta vista
 
-  // Función para rechazar una plantilla (llamada desde el modal de revisión)
-  const handleRejectTemplate = async (templateId, rejectionReason) => {
-    setIsLoading(true);
-    try {
-      await rejectTemplate(templateId, rejectionReason);
-      setIsReviewModalOpen(false); // Cerrar el modal de rechazo
-      if (onTemplateUpdated) {
-        onTemplateUpdated();
-      }
-    } catch (error) {
-      console.error('Error al rechazar la plantilla:', error);
-      alert(`Error al rechazar la plantilla: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Rechazo deshabilitado en esta vista
 
   return (
     <div>
@@ -205,8 +173,7 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
                       <TemplateActionMenu
                         template={template}
                         onPreview={openPreviewModal}
-                        onApprove={handleApproveTemplate}
-                        onReject={openRejectModal} // Abrir el modal de rechazo
+                        previewOnly
                       />
                     </td>
                   </tr>
@@ -248,20 +215,7 @@ const TemplateList = ({ templates = [], onTemplateUpdated, statusFilter }) => {
           </div>
         </div>
       </div>
-      {/* Modal de rechazo de plantilla (ahora solo para rechazar) */}
-      {isReviewModalOpen && selectedTemplate && (
-        <TemplateReviewModal 
-          template={selectedTemplate} 
-          onClose={() => setIsReviewModalOpen(false)}
-          onReview={(templateId, approve, rejectionReason) => {
-            if (approve) {
-              handleApproveTemplate(templateId);
-            } else {
-              handleRejectTemplate(templateId, rejectionReason);
-            }
-          }}
-        />
-      )}
+  {/* Revisión deshabilitada en esta vista */}
       {isPreviewModalOpen && selectedTemplate && (
         <TemplatePreviewModal
           template={selectedTemplate}

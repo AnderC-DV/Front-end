@@ -10,7 +10,7 @@ const ApproveIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5
 const RejectIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>;
 // -------------------------
 
-const TemplateActionMenu = ({ template, onPreview, onApprove, onReject }) => {
+const TemplateActionMenu = ({ template, onPreview, onApprove, onReject, previewOnly }) => {
   const { user } = useAuth();
   const userRoles = user?.decoded?.roles || [];
 
@@ -53,8 +53,8 @@ const TemplateActionMenu = ({ template, onPreview, onApprove, onReject }) => {
         <PreviewIcon />
       </button>
 
-      {/* Botones de Aprobar/Rechazar (condicionales) */}
-      {canApproveOrReject() && (
+  {/* Botones de Aprobar/Rechazar (condicionales) */}
+  {canApproveOrReject() && !previewOnly && (
         <>
           <button
             onClick={handleApproveClick}
@@ -84,10 +84,12 @@ TemplateActionMenu.propTypes = {
   onPreview: PropTypes.func.isRequired,
   onApprove: PropTypes.func,
   onReject: PropTypes.func,
+  previewOnly: PropTypes.bool,
 };
 
 // Valores por defecto
 TemplateActionMenu.defaultProps = {
   onApprove: () => {},
   onReject: () => {},
+  previewOnly: false,
 };

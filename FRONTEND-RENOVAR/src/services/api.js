@@ -73,6 +73,49 @@ const apiRequest = async (endpoint, method = 'GET', body = null) => {
   }
 };
 
+const apiRequestWithFile = async (endpoint, method = 'POST', file) => {
+  const token = getAuthToken();
+  const headers = {};
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const config = {
+    method,
+    headers,
+    body: formData,
+  };
+
+  try {
+    const response = await fetch(`${BASE_URL}${endpoint}`, config);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: `Error en la petición a ${endpoint}` }));
+      let errorMessage = `Error en la petición a ${endpoint}`;
+
+      if (response.status === 422 && errorData.detail) {
+        errorMessage = errorData.detail.map(err => `${err.loc.join('.')} -> ${err.msg}`).join('; ');
+      } else if (errorData.detail && typeof errorData.detail === 'string') {
+        errorMessage = errorData.detail;
+      } else if (errorData.message) {
+        errorMessage = errorData.message;
+      } else {
+        errorMessage = `Error ${response.status}: ${response.statusText}`;
+      }
+      
+      throw new Error(errorMessage);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`API file request failed: ${error.message}`);
+    throw error;
+  }
+};
+
 // --- Endpoints de Autenticación ---
 export const checkUserIdentifier = (identifier) => apiRequest('/auth/login/check-identifier', 'POST', { identifier });
 export const loginWithPassword = (username, password) => {
@@ -140,3 +183,6 @@ export const rejectTemplate = (templateId, rejection_reason) => {
   return apiRequest(`/templates/${templateId}/internal-reject`, 'POST', body);
 };
 export const reviewTemplate = (templateId, reviewData) => apiRequest(`/templates/${templateId}/review`, 'POST', reviewData);
+
+// --- Endpoints de Contactos ---
+export const uploadContactsCSV = (file) => apiRequestWithFile('/staff-contacts/bulk', 'POST', file);
