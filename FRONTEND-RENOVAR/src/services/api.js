@@ -153,6 +153,40 @@ export const getCampaignStats = () => apiRequest('/campaigns/stats');
 export const refreshCampaignStats = () => apiRequest('/campaigns/stats/refresh', 'POST');
 export const createAndLaunchCampaign = (campaignData) => apiRequest('/campaigns/', 'POST', campaignData);
 
+// Preview de campaña en CSV (respuesta como Blob)
+export const getCampaignPreviewCSV = async (payload) => {
+  const token = getAuthToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'text/csv,application/octet-stream,application/json',
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE_URL}/campaigns/preview/csv`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    try {
+      const ct = res.headers.get('Content-Type') || '';
+      if (ct.includes('application/json')) {
+        const data = await res.json();
+        if (Array.isArray(data?.detail)) {
+          throw new Error(data.detail.map(d => d.msg || d.message || JSON.stringify(d)).join('; '));
+        }
+        throw new Error(data?.detail || data?.message || `Error ${res.status}`);
+      } else {
+        const text = await res.text();
+        throw new Error(text || `Error ${res.status}`);
+      }
+    } catch (e) {
+      throw new Error(e.message || `Error ${res.status}`);
+    }
+  }
+  return res;
+};
+
 // --- Endpoints de Campañas Recurrentes (Schedules) ---
 export const createSchedule = (scheduleData) => apiRequest('/schedules/', 'POST', scheduleData);
 export const getSchedules = () => apiRequest('/schedules/');
@@ -186,3 +220,7 @@ export const reviewTemplate = (templateId, reviewData) => apiRequest(`/templates
 
 // --- Endpoints de Contactos ---
 export const uploadContactsCSV = (file) => apiRequestWithFile('/staff-contacts/bulk', 'POST', file);
+
+// --- Endpoints de Conversaciones ---
+export const getConversations = () => apiRequest('/conversations/');
+export const sendMessage = (conversationId, messageData) => apiRequest(`/conversations/${conversationId}/reply`, 'POST', messageData);

@@ -7,6 +7,7 @@ import CreateCampaignPage from '../pages/CreateCampaignPage';
 import TemplateManagerPage from '../pages/TemplateManagerPage';
 import TemplateEditorPage from '../pages/TemplateEditorPage';
 import TemplateApprovalPage from '../pages/TemplateApprovalPage';
+import WhatsAppChatPage from '../pages/WhatsAppChatPage';
 import ProtectedRoute from './ProtectedRoute';
 export const AppRouter = () => {
   return (
@@ -24,6 +25,7 @@ export const AppRouter = () => {
         <Route path="templates/new" element={<TemplateEditorPage />} />
         <Route path="templates/:id/edit" element={<TemplateEditorPage />} />
         <Route path="templates/approval" element={<TemplateApprovalPage />} />
+        <Route path="chat" element={<WhatsAppChatPage />} />
         {/* Aquí se pueden añadir más rutas protegidas */}
       </Route>
     </Routes>

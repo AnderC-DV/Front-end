@@ -52,25 +52,54 @@ const Step5_Confirmation = ({ campaignData }) => {
   };
 
   const handleDownloadCSV = async () => {
+    // Validaciones rápidas antes de llamar al backend
+    if (!campaignData?.channel) {
+      toast.error("Selecciona un canal para continuar.");
+      return;
+    }
+    if (!campaignData?.message_template_id) {
+      toast.error("Selecciona una plantilla antes de descargar la vista previa.");
+      return;
+    }
+    if (!campaignData?.audience_filter_id && !campaignData?.definition) {
+      toast.error("Define la audiencia (filtro guardado o reglas nuevas) para generar la vista previa.");
+      return;
+    }
+    if ((campaignData?.target_role === 'CODEUDOR' || campaignData?.target_role === 'AMBAS') && !campaignData?.codebtor_strategy) {
+      toast.error("Selecciona la estrategia de codeudor.");
+      return;
+    }
+
     setIsDownloading(true);
     toast.info("Descargando el archivo CSV...");
 
     try {
+      // Construye el payload respetando filtro guardado o definición en memoria
       const campaignPayload = {
         name: campaignData.name,
         channel_type: campaignData.channel?.toUpperCase(),
         message_template_id: campaignData.message_template_id,
-        audience_filter_id: campaignData.audience_filter_id,
         target_role: campaignData.target_role,
-        codebtor_strategy: (campaignData.target_role === 'CODEUDOR' || campaignData.target_role === 'AMBAS') ? campaignData.codebtor_strategy : null,
+        codebtor_strategy:
+          campaignData.target_role === 'CODEUDOR' || campaignData.target_role === 'AMBAS'
+            ? campaignData.codebtor_strategy
+            : null,
         scheduled_at: campaignData.scheduled_at || null,
         // source_schedule_id no es necesario para el preview de una campaña única
       };
+
+      if (campaignData.audience_filter_id) {
+        campaignPayload.audience_filter_id = campaignData.audience_filter_id;
+      } else if (campaignData.definition) {
+        // Permite previsualizar con un filtro nuevo sin necesidad de guardarlo
+        campaignPayload.audience_definition = campaignData.definition;
+      }
 
       const response = await fetch(`${BASE_URL}/campaigns/preview/csv`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'text/csv,application/octet-stream,application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(campaignPayload),
@@ -81,15 +110,39 @@ const Step5_Confirmation = ({ campaignData }) => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'segmentacion_preview.csv';
+        // Intenta usar el nombre de archivo del header si existe
+        const disposition = response.headers.get('Content-Disposition') || '';
+        const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+        const serverFileName = decodeURIComponent(match?.[1] || match?.[2] || '');
+        a.download = serverFileName || 'segmentacion_preview.csv';
         document.body.appendChild(a);
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
         toast.success("Archivo CSV descargado con éxito.");
       } else {
-        console.error('Error al descargar el CSV:', response.statusText);
-        toast.error("Error al descargar el CSV de la vista previa.");
+        // Intenta extraer mensaje detallado del cuerpo de la respuesta
+        let errorMessage = `Error al descargar el CSV (${response.status})`;
+        try {
+          const contentType = response.headers.get('Content-Type') || '';
+          if (contentType.includes('application/json')) {
+            const data = await response.json();
+            if (Array.isArray(data?.detail)) {
+              errorMessage = data.detail.map(d => (d.msg || d.message || JSON.stringify(d))).join('; ');
+            } else if (typeof data?.detail === 'string') {
+              errorMessage = data.detail;
+            } else if (data?.message) {
+              errorMessage = data.message;
+            }
+          } else {
+            const text = await response.text();
+            if (text) errorMessage = text;
+          }
+        } catch (parseErr) {
+          // Ignora errores de parsing, ya tenemos un mensaje genérico
+        }
+        console.error('Error al descargar el CSV:', errorMessage);
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error('Error en la solicitud de descarga de CSV:', error);
